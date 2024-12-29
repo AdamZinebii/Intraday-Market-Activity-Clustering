@@ -26,8 +26,8 @@ class BaseClustering(ABC):
         
         Returns
         -------
-        np.ndarray
-            Array of indices of the cluster for each period
+        BaseClustering
+            The fitted clustering algorithm instance
         """
         pass
 

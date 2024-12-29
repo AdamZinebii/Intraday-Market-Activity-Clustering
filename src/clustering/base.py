@@ -77,6 +77,35 @@ class BaseClustering(ABC):
     def ssv(self) -> np.ndarray:
         return self.centers
     
+    def get_transition_probability_matrix(self) -> np.ndarray:
+        """
+        Get the transition matrix between clusters
+
+        Returns
+        -------
+        np.ndarray
+            Transition matrix between clusters
+        """
+        # Sort by the start time of the Period
+        sorted_periods_with_labels = sorted(list(zip(self.periods, self.labels)), key=lambda x: x[0].start)
+
+        transitions = np.zeros((self.n_clusters, self.n_clusters))
+        for i in range(len(sorted_periods_with_labels) - 1):
+            curr_state, next_state = sorted_periods_with_labels[i][1], sorted_periods_with_labels[i + 1][1]
+            transitions[curr_state, next_state] += 1
+
+        # Final state to final state
+        transitions[next_state, next_state] += 1
+
+        # Normalize the rows
+        transitions = transitions / transitions.sum(axis=1, keepdims=True)
+
+        return transitions
+    
+    @property
+    def transition_matrix(self) -> np.ndarray:
+        return self.get_transition_probability_matrix()
+    
     def score(self, X: List[Period]) -> float:
         """
         Score the clustering algorithm on the data

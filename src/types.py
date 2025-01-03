@@ -143,11 +143,56 @@ class Market:
 
         return periods
     
-    def compute_correlation_matrix(self) -> np.ndarray:
-        ...
+    #NOTE This methods is for test purposes, it should be implemented
+    def compute_correlation_matrix(self, X: List[Period]) -> np.ndarray:
+        n = len(X)  # Number of periods
+        # Generate a random symmetric matrix with values between -1 and 1
+        random_matrix = np.random.uniform(-1, 1, size=(n, n))
+        # Ensure symmetry
+        corr_matrix = (random_matrix + random_matrix.T) / 2
+        # Set diagonal values to 1 (perfect self-correlation)
+        np.fill_diagonal(corr_matrix, 1)
+        return corr_matrix
+        
     
-    def build_graph(self) -> nx.Graph:
-        ...
+    def build_graph(self, X: List[Period], threshold=0.2) -> nx.Graph:
+        """
+            This method builds a graph from the correlation matrix of the state vectors of the days.
+            Each period is represented as a node in the graph and the edges are weighted by the correlation, with no edges
+            when correlation is below the threshold.
+
+            params:
+                period_length: int - the length of the periods to consider.
+                threshold: float - the minimum correlation value for an edge to be added to the graph
+            return: nx.Graph - the graph representing the correlation between the periods. 
+        """
+        periods = X
+        corr_matrix = self.compute_correlation_matrix(X)
+     
+        n = len(periods)
+        G = nx.Graph()
+        for i in range(n):
+            for j in range(i+1, n):
+                corr = corr_matrix[i, j]
+                if abs(corr) > threshold: # J'ai mis la valeur absolue, Avis aux experts?
+                    G.add_edge(i, j, weight=corr)
+        # Display Graph
+        self.plot_graph(G)
+        return G
+    
+    def plot_graph(self, G: nx.Graph):
+        """
+            This method plots the graph G.
+            params:
+                G: nx.Graph - the graph to plot
+        """
+        pos = nx.spring_layout(G)
+        labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw(G, pos, with_labels=True)
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+        plt.show()
 
     def __getitem__(self, key):
         return self.tick_data[key]
+    
+    

@@ -1,0 +1,27 @@
+from .base import BaseClustering
+from typing import List
+
+from src.types import Period
+
+import numpy as np
+import itertools
+import matplotlib.pyplot as plt
+import networkx as nx
+
+
+class GreadyClustering(BaseClustering):
+    def fit(self, X: List[Period], G: nx.Graph) -> "BaseClustering":
+        self.periods = X
+
+        # Create a graph from the periods and compute the Louvain communities
+        communities = nx.community.greedy_modularity_communities(G)
+        num_periods = len(X) 
+        labels = [-1] * num_periods  
+        for community_id, community in enumerate(communities):
+            for period in community:
+                labels[period] = community_id
+        
+        self.labels = np.array(labels)
+
+        return self
+    

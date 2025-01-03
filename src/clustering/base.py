@@ -145,3 +145,11 @@ class BaseClustering(ABC):
 
         plt.tight_layout()
         plt.show()
+
+    def summarize_clusters(self):
+        print(f"Number of periods: {len(self.periods)}")
+        print(f"Number of clusters: {len(self.clusters)}")
+        print(f"Cluster sizes: {[len(cluster) for cluster in self.clusters]}")
+        print(f"Cluster labels: {self.labels}")
+        #print(f"Cluster centers: {clustering.cluster_centers}")
+        print(f"Transition matrix: \n{self.transition_matrix}")

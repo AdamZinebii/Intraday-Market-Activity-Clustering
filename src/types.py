@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 
-FV_KEYS = ['trade_price', 'trade_volume', 'spread', 'quote_volume_imbalance']
+FEATURES_KEYS = ['trade_price', 'trade_volume', 'spread', 'quote_volume_imbalance']
 
 @dataclass
 class Tick:
@@ -63,9 +63,9 @@ class Tick:
         }
     
     @property
-    def fv(self) -> List[float]:
+    def features(self) -> List[float]:
         d = self.to_dict()
-        return [d[k] for k in FV_KEYS]
+        return [d[k] for k in FEATURES_KEYS]
     
 @dataclass
 class Period:
@@ -74,13 +74,32 @@ class Period:
     tick_data: List[Tick] = field(default_factory=list)
 
     @property
-    def ssv(self):
-        fvs = np.array([t.fv for t in self.tick_data])
-        return np.mean(fvs, axis=0)
+    def stocks(self):
+        return set(t.stock for t in self.tick_data)
 
-    def plot_ssv(self, ax, color='b'):
+    @property
+    def per_stock_ticks(self) -> Dict[str, List[Tick]]:
+        per_stock = {}
+        for tick in self.tick_data:
+            if tick.stock not in per_stock:
+                per_stock[tick.stock] = []
+            per_stock[tick.stock].append(tick)
+        return per_stock
+        
+    def get_stock_fv(self, stock: str) -> np.ndarray:
+        stock_data = np.array([t.features for t in self.per_stock_ticks.get(stock, [])])
+        rel_changes = np.diff(stock_data, axis=0) / stock_data[:-1, :]
+        return np.mean(rel_changes, axis=0)
+
+    @property
+    def fv(self):
+        # Compute the stock feature values
+        per_stock_fv = np.array([self.get_stock_fv(stock) for stock in self.stocks])
+        return np.mean(per_stock_fv, axis=0)
+
+    def plot_fv(self, ax):
         # Create a bar chart
-        barlist = ax.bar(FV_KEYS, self.ssv)
+        barlist = ax.bar(FEATURES_KEYS, self.fv)
 
         # Set the color of the bars
         barlist[0].set_color('r')
@@ -93,6 +112,7 @@ class Period:
         ax.set_xticks(range(4))
         ax.set_xticklabels(['Trade Price', 'Trade Volume', 'Spread', 'Quote Volume Imbalance'])
         ax.set_ylabel('Value')
+        #ax.set_ylim(-1, 1)
 
         ax.grid()
 

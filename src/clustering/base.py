@@ -3,7 +3,7 @@ from typing import List
 
 import matplotlib.pyplot as plt
 
-from src.types import Period, FV_KEYS
+from src.types import Period, FEATURES_KEYS
 
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity
 
@@ -47,8 +47,8 @@ class BaseClustering(ABC):
         np.ndarray
             Array of indices of the closest cluster for each period
         """
-        input_ssv = np.array([x.ssv for x in X])
-        return np.argmin(euclidean_distances(self.ssv, input_ssv), axis=0)
+        input_fv = np.array([x.fv for x in X])
+        return np.argmin(euclidean_distances(self.ssv, input_fv), axis=0)
     
     @property
     def clusters(self):
@@ -69,7 +69,7 @@ class BaseClustering(ABC):
     def centers(self) -> np.ndarray:
         centers = []
         for c in self.clusters:
-            centroid = np.mean([p.ssv for p in c], axis=0)
+            centroid = np.mean([p.fv for p in c], axis=0)
             centers.append(centroid)
         return centers
 
@@ -120,14 +120,14 @@ class BaseClustering(ABC):
         float
             Score of the clustering algorithm
         """
-        return cosine_similarity(self.ssv, [x.ssv for x in X]).mean()
+        return cosine_similarity(self.ssv, [x.fv for x in X]).mean()
     
     def plot_ssv(self):
         fig, ax = plt.subplots(nrows=self.n_clusters, figsize=(10, 5 * self.n_clusters))
 
         for i, ssv in enumerate(self.ssv):
             # Create a bar chart
-            barlist = ax[i].bar(FV_KEYS, ssv)
+            barlist = ax[i].bar(FEATURES_KEYS, ssv)
 
             # Set the color of the bars
             barlist[0].set_color('r')

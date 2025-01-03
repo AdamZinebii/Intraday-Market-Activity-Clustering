@@ -62,7 +62,7 @@ def process_index_dataframe(df, start_date, end_date, time_interval='15T'):
         'trade-price': 'mean',
         'trade-volume': 'sum',
         'spread': 'mean',
-        'volume_imbalance': 'mean'
+        'volume_imbalance': 'sum'
     }).dropna()
     full_index = pd.date_range(start=start_date, end=end_date, freq=time_interval)
     df_resampled = df_resampled.reindex(full_index)
@@ -106,7 +106,7 @@ def merge_index_dataframes(df1, df2):
     df_merged.sort_index(inplace=True)
     # Fill or handle missing values if necessary
     # df_merged.fillna(method='ffill', inplace=True)  # Forward fill for time series data
-    df_merged[['bid-price', 'bid-volume', 'ask-price', 'ask-volume', 'trade-price','trade-volume']] = df_merged[['bid-price', 'bid-volume', 'ask-price', 'ask-volume', 'trade-price','trade-volume']].fillna(method='ffill')
+    # df_merged[['bid-price', 'bid-volume', 'ask-price', 'ask-volume', 'trade-price','trade-volume']] = df_merged[['bid-price', 'bid-volume', 'ask-price', 'ask-volume', 'trade-price','trade-volume']].fillna(method='ffill')
 
     return df_merged
 
@@ -140,6 +140,7 @@ def pipeline_trade_bbo(df_bbo,df_trade,time_interval,start_date,end_date):
     df_bbo = df_bbo[['normal_date','bid-price','bid-volume','ask-price','ask-volume']]
     df_trade = df_trade[['normal_date','trade-price','trade-volume']]
     df_final = merge_index_dataframes(df_bbo,df_trade)
+    print(df_final)
     return process_index_dataframe(df_final, start_date, end_date, time_interval=time_interval)
 
 import pandas as pd
@@ -195,5 +196,6 @@ def corr_mat(index_to_files, start_date, end_date, time_interval):
 
         feature_vec_idx = pipeline_trade_bbo(combined_df_bbo, combined_df_trade, time_interval, start_date, end_date)
         per_index_dfs.append(feature_vec_idx)
+        print(feature_vec_idx)
 
     return merge_multiple_dataframes(per_index_dfs).T.corr()

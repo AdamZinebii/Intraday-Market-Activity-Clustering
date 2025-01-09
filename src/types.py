@@ -96,18 +96,6 @@ class Period:
     def get_stock_fv(self, stock: str) -> np.ndarray:
         ticks_per_stocks = self.per_stock_ticks
         stock_data = np.array([t.features for t in ticks_per_stocks[stock] ])
-        '''
-        stock_data_df = pd.DataFrame(stock_data,columns=FEATURES_KEYS)
-        stock_data_df_rel_change = stock_data_df.apply(pct_change_ignore_nan)
-        #rel_changes = np.diff(stock_data, axis=0) / (stock_data[:-1, :] + epsilon)
-        #rel_changes = np.nan_to_num(rel_changes, nan=0.0, posinf=0.0, neginf=0.0)
-
-        # Small constant to prevent division by zero
-
-        # Example: Adding epsilon directly
-        mean_rel_changes = stock_data_df_rel_change.mean(skipna=True)
-        print('hhhhh',mean_rel_changes)
-        '''
         means = []
 
 
@@ -124,6 +112,21 @@ class Period:
 
         return means
 
+    def get_stock_fv_ip(self, stock: str) -> np.ndarray:
+        ticks_per_stocks = self.per_stock_ticks
+        stock_data = np.array([t.features for t in ticks_per_stocks[stock] ])
+        stock_data = np.where(stock_data == None, np.nan, stock_data).astype(float)
+        mean_trade_price = np.nanmean(stock_data[:, 0])  # Mean of trade prices, ignoring NaNs
+        sum_trade_volume = np.nansum(stock_data[:, 1])  # Sum of trade volume, ignoring NaNs
+        mean_spread = np.nanmean(stock_data[:, 2])  # Mean of spread, ignoring NaNs
+        mean_quote_volume_imbalance = np.nanmean(stock_data[:, 3])  # Mean of quote volume imbalance, ignoring NaNs
+
+        # Combine into a new array
+        fv_vals_stock = np.array([mean_trade_price, sum_trade_volume, mean_spread, mean_quote_volume_imbalance])
+
+        return fv_vals_stock
+
+
     @property
     def fv(self):
         # Compute the stock feature values
@@ -133,8 +136,14 @@ class Period:
         flattened_fv = np.concatenate(per_stock_fv)
         return flattened_fv
 
+    @property
+    def fv_inter(self):
+        # Compute the stock feature values
+        per_stock_fv = np.array([self.get_stock_fv_ip(stock) for stock in self.stocks])
 
-
+        # Example: Adding epsilon directly
+        flattened_fv = np.concatenate(per_stock_fv)
+        return flattened_fv
 
     def plot_ssv(self, ax, color='b'):
         # Create a bar chart
@@ -167,6 +176,7 @@ class Market:
         for entry in tqdm(os.listdir(year_path)):
             with tarfile.open(f'{year_path}/{entry}', 'r') as tar:
                 for member in (tar.getmembers()):
+                    print(member)
                     day_data = (member.name)
                     stock = day_data.split('/')[7]
                     type = day_data.split('/')[6]
@@ -322,6 +332,15 @@ class Market:
         corr_matrix = np.ma.corrcoef(matrice_masque)
         return  corr_matrix.data
 
+    def compute_correlation_matrix_inter(self, period_length_seconds: int) -> np.ndarray:
+        fvs = self.get_fvs_inter(period_length_seconds)
+
+
+        # Calculer la matrice de corrélation
+        corr_matrix = np.ma.corrcoef(fvs)
+        return  corr_matrix.data
+
+
     def get_fvs(self, period_length_seconds: int):
         period_length = (timedelta(seconds=period_length_seconds))
         periods = self.get_periods(period_length)
@@ -334,6 +353,15 @@ class Market:
             fvs.append(array)
         return  fvs
 
+
+    def get_fvs_inter(self, period_length_seconds: int):
+        period_length = (timedelta(seconds=period_length_seconds))
+        periods = self.get_periods(period_length)
+        fvs = []
+        for i in range(len(periods[1:])):
+            array = (periods[i].fv_inter - periods[i-1].fv_inter)/periods[i-1].fv_inter
+            fvs.append(array)
+        return fvs
 
     
     def build_graph(self) -> nx.Graph:

@@ -333,7 +333,7 @@ class BaseClustering(ABC):
         plt.title(f"Community Graph: {method}", fontsize=15)
         plt.show()
 
-    def plot_cluster(self, G: nx.Graph, periods: List['Period'], method: str) -> None:
+    def plot_cluster(self, periods: List['Period'], method: str) -> None:
         """
         Plot the graph with clusters as fully connected subgraphs and nodes colored by their time period.
 
@@ -355,37 +355,31 @@ class BaseClustering(ABC):
         import networkx as nx
         import matplotlib.colors as mcolors
 
-        # Step 1: Perform community detection using the provided labels (self.labels)
-        labels = self.labels  # Assuming self.labels contains community labels for the nodes
+        labels = self.labels  
+        cluster_graph = nx.Graph()  
+        node_to_cluster = {}  
 
-        # Step 2: Create a new graph where each cluster is fully connected
-        cluster_graph = nx.Graph()
-        node_to_cluster = {}
-        for i, community in enumerate(set(labels)):
-            cluster_nodes = [node for node, label in enumerate(labels) if label == community]
+        for i in set(labels):
+            cluster_nodes = [idx for idx, label in enumerate(labels) if label == i]
             cluster_graph.add_nodes_from(cluster_nodes)
-            cluster_graph.add_edges_from([(u, v) for u, v in nx.complete_graph(len(cluster_nodes)).edges()])
+            cluster_graph.add_edges_from([(u, v) for u in cluster_nodes for v in cluster_nodes if u < v])
+            
             for node in cluster_nodes:
                 node_to_cluster[node] = i
 
-        # Step 3: Assign colors based on the time period
         def get_time_of_day(period: 'Period') -> float:
-            # Use the start timestamp of the period to determine the hour
             timestamp = period.start
             dt = datetime.fromtimestamp(timestamp)
             print(dt, dt.hour + dt.minute / 60)
-            return dt.hour + dt.minute / 60  # Fractional hour
+            return dt.hour + dt.minute / 60  
 
         time_of_day_values = [get_time_of_day(periods[node]) for node in cluster_graph.nodes]
-        cmap = plt.cm.RdYlGn  # Color map
-        norm = mcolors.Normalize(vmin=8, vmax=18)  # Scale from 8:00 AM to 6:00 PM
+        cmap = plt.cm.RdYlGn.reversed()  
+        norm = mcolors.Normalize(vmin=8, vmax=18)  
         node_colors = [cmap(norm(value)) for value in time_of_day_values]
 
-        # Step 4: Generate positions for the nodes
-        pos = nx.spring_layout(cluster_graph, seed=42)  # Seed for consistent layout
-
-        # Step 5: Create the plot
-        fig, ax = plt.subplots(figsize=(14, 12))  # Create a figure and axis
+        pos = nx.spring_layout(cluster_graph, seed=42)  
+        fig, ax = plt.subplots(figsize=(14, 12))  
         nx.draw(
             cluster_graph,
             pos,
@@ -394,17 +388,14 @@ class BaseClustering(ABC):
             with_labels=True,
             font_size=10,
             edge_color="gray",
-            ax=ax,  # Pass the Axes object
+            ax=ax,  
         )
         
-        # Add the colorbar with hours as labels
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        sm.set_array([])  # Required for colorbar
+        sm.set_array([])  
         cbar = fig.colorbar(sm, ax=ax, orientation="vertical", shrink=0.8)
         cbar.set_label("Time of Day (Market Hours)", fontsize=12)
-        cbar.set_ticks([8, 10, 12, 14, 16, 18])  # Define tick positions
-        cbar.set_ticklabels(["8:00 AM", "10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM", "6:00 PM"])  # Set tick labels
-
-        # Add a title
+        cbar.set_ticks([8, 10, 12, 14, 16, 18])  
+        cbar.set_ticklabels(["8:00 AM", "10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM", "6:00 PM"])  
         ax.set_title(f"Clustered Graph - {method}", fontsize=18)
         plt.show()

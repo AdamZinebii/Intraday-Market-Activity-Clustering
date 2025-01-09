@@ -143,16 +143,9 @@ class Market:
 
         return periods
     
-    #NOTE This methods is for test purposes, it should be implemented
+    
     def compute_correlation_matrix(self, X: List[Period]) -> np.ndarray:
-        n = len(X)  # Number of periods
-        # Generate a random symmetric matrix with values between -1 and 1
-        random_matrix = np.random.uniform(-1, 1, size=(n, n))
-        # Ensure symmetry
-        corr_matrix = (random_matrix + random_matrix.T) / 2
-        # Set diagonal values to 1 (perfect self-correlation)
-        np.fill_diagonal(corr_matrix, 1)
-        return corr_matrix
+       pass
         
     
     def build_graph(self, X: List[Period], threshold=0.2) -> nx.Graph:

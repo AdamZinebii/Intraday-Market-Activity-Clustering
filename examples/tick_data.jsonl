@@ -1,6 +1,5 @@
 {"timestamp": 1672561800, "stock": "AAPL", "bid_price": 150.83, "bid_volume": 592, "ask_price": 151.21, "ask_volume": 1090, "trade_price": 151.13, "trade_volume": 757}
 {"timestamp": 1672565400, "stock": "AAPL", "bid_price": 150.96, "bid_volume": 824, "ask_price": 151.39, "ask_volume": 1186, "trade_price": 151.26, "trade_volume": 522}
-{"timestamp": 1672565400, "stock": "AAPL", "bid_price": 149.27, "bid_volume": 1072, "ask_price": 149.7, "ask_volume": 922, "trade_price": 149.53, "trade_volume": 897}
 {"timestamp": 1672572600, "stock": "AAPL", "bid_price": 149.77, "bid_volume": 812, "ask_price": 150.21, "ask_volume": 634, "trade_price": 150.05, "trade_volume": 506}
 {"timestamp": 1672576200, "stock": "AAPL", "bid_price": 149.04, "bid_volume": 908, "ask_price": 149.3, "ask_volume": 828, "trade_price": 149.12, "trade_volume": 852}
 {"timestamp": 1672579800, "stock": "AAPL", "bid_price": 150.31, "bid_volume": 1050, "ask_price": 150.66, "ask_volume": 1015, "trade_price": 150.33, "trade_volume": 1129}

@@ -9,6 +9,7 @@ from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity
 
 import numpy as np
 import networkx as nx
+from datetime import datetime, timezone
 
 class BaseClustering(ABC):
     periods: List[Period] = None
@@ -331,4 +332,72 @@ class BaseClustering(ABC):
 
         plt.title(f"Community Graph: {method}", fontsize=15)
         plt.show()
-    
+
+    def plot_cluster(self, G: nx.Graph, periods: List['Period'], method: str) -> None:
+        """
+        Plot the graph with clusters as fully connected subgraphs and nodes colored by their time period.
+
+        Parameters
+        ----------
+        G : nx.Graph
+            The original graph.
+        periods : List[Period]
+            List of Period objects corresponding to the nodes in the graph.
+        method : str
+            Name of the community detection method.
+
+        Returns
+        -------
+        None
+        """
+        # Step 1: Perform community detection using the provided labels (self.labels)
+        labels = self.labels  # Assuming self.labels contains community labels for the nodes
+
+        # Step 2: Create a new graph where each cluster is fully connected
+        cluster_graph = nx.Graph()
+        node_to_cluster = {}
+        for i, community in enumerate(set(labels)):
+            cluster_nodes = [node for node, label in enumerate(labels) if label == community]
+            cluster_graph.add_nodes_from(cluster_nodes)
+            cluster_graph.add_edges_from([(u, v) for u in cluster_nodes for v in cluster_nodes if u != v])
+            for node in cluster_nodes:
+                node_to_cluster[node] = i
+
+        # Step 3: Assign colors based on the time period
+        def get_time_of_day_color(period: 'Period') -> tuple:
+            # Use the start timestamp of the period to determine the color
+            timestamp = period.start
+            
+            # Convert the timestamp to a timezone-aware datetime object and extract the hour
+            dt = datetime.fromtimestamp(timestamp)
+            
+            hour = dt.hour
+            minute = dt.minute
+            
+            # Determine the corresponding 10-minute period index (0 to 5 for each hour)
+            time_slot = (hour * 60 + minute) // 10  # Divide the day into 10-minute intervals (144 intervals in total)
+            
+            # Define the color gradient: red in the morning to green at 5 PM (17:00)
+            if time_slot <= 51:  # First 51 intervals (00:00 to 8:30 AM)
+                return plt.cm.RdYlGn(time_slot / 51)  # Red to Yellow for morning (Red in morning)
+            else:  # From 8:30 AM to 5 PM (51-102)
+                return plt.cm.RdYlGn((102 - time_slot) / 51)  # Green for afternoon (green at 5pm)
+
+        node_colors = [get_time_of_day_color(periods[node]) for node in cluster_graph.nodes()]
+        
+        # Step 4: Generate positions for the nodes
+        pos = nx.spring_layout(cluster_graph)
+
+        # Step 5: Plot the graph
+        plt.figure(figsize=(12, 10))
+        nx.draw(
+            cluster_graph,
+            pos,
+            node_size=500,
+            node_color=node_colors,
+            with_labels=True,
+            font_size=10,
+            edge_color="gray",
+        )
+        plt.title(f"Clustered Graph - {method}", fontsize=15)
+        plt.show()

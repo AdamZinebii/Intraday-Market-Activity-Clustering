@@ -350,6 +350,11 @@ class BaseClustering(ABC):
         -------
         None
         """
+        import matplotlib.pyplot as plt
+        from datetime import datetime
+        import networkx as nx
+        import matplotlib.colors as mcolors
+
         # Step 1: Perform community detection using the provided labels (self.labels)
         labels = self.labels  # Assuming self.labels contains community labels for the nodes
 
@@ -359,45 +364,47 @@ class BaseClustering(ABC):
         for i, community in enumerate(set(labels)):
             cluster_nodes = [node for node, label in enumerate(labels) if label == community]
             cluster_graph.add_nodes_from(cluster_nodes)
-            cluster_graph.add_edges_from([(u, v) for u in cluster_nodes for v in cluster_nodes if u != v])
+            cluster_graph.add_edges_from([(u, v) for u, v in nx.complete_graph(len(cluster_nodes)).edges()])
             for node in cluster_nodes:
                 node_to_cluster[node] = i
 
         # Step 3: Assign colors based on the time period
-        def get_time_of_day_color(period: 'Period') -> tuple:
-            # Use the start timestamp of the period to determine the color
+        def get_time_of_day(period: 'Period') -> float:
+            # Use the start timestamp of the period to determine the hour
             timestamp = period.start
-            
-            # Convert the timestamp to a timezone-aware datetime object and extract the hour
             dt = datetime.fromtimestamp(timestamp)
-            
-            hour = dt.hour
-            minute = dt.minute
-            
-            # Determine the corresponding 10-minute period index (0 to 5 for each hour)
-            time_slot = (hour * 60 + minute) // 10  # Divide the day into 10-minute intervals (144 intervals in total)
-            
-            # Define the color gradient: red in the morning to green at 5 PM (17:00)
-            if time_slot <= 51:  # First 51 intervals (00:00 to 8:30 AM)
-                return plt.cm.RdYlGn(time_slot / 51)  # Red to Yellow for morning (Red in morning)
-            else:  # From 8:30 AM to 5 PM (51-102)
-                return plt.cm.RdYlGn((102 - time_slot) / 51)  # Green for afternoon (green at 5pm)
+            print(dt, dt.hour + dt.minute / 60)
+            return dt.hour + dt.minute / 60  # Fractional hour
 
-        node_colors = [get_time_of_day_color(periods[node]) for node in cluster_graph.nodes()]
-        
+        time_of_day_values = [get_time_of_day(periods[node]) for node in cluster_graph.nodes]
+        cmap = plt.cm.RdYlGn  # Color map
+        norm = mcolors.Normalize(vmin=8, vmax=18)  # Scale from 8:00 AM to 6:00 PM
+        node_colors = [cmap(norm(value)) for value in time_of_day_values]
+
         # Step 4: Generate positions for the nodes
-        pos = nx.spring_layout(cluster_graph)
+        pos = nx.spring_layout(cluster_graph, seed=42)  # Seed for consistent layout
 
-        # Step 5: Plot the graph
-        plt.figure(figsize=(12, 10))
+        # Step 5: Create the plot
+        fig, ax = plt.subplots(figsize=(14, 12))  # Create a figure and axis
         nx.draw(
             cluster_graph,
             pos,
-            node_size=500,
+            node_size=600,
             node_color=node_colors,
             with_labels=True,
             font_size=10,
             edge_color="gray",
+            ax=ax,  # Pass the Axes object
         )
-        plt.title(f"Clustered Graph - {method}", fontsize=15)
+        
+        # Add the colorbar with hours as labels
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])  # Required for colorbar
+        cbar = fig.colorbar(sm, ax=ax, orientation="vertical", shrink=0.8)
+        cbar.set_label("Time of Day (Market Hours)", fontsize=12)
+        cbar.set_ticks([8, 10, 12, 14, 16, 18])  # Define tick positions
+        cbar.set_ticklabels(["8:00 AM", "10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM", "6:00 PM"])  # Set tick labels
+
+        # Add a title
+        ax.set_title(f"Clustered Graph - {method}", fontsize=18)
         plt.show()

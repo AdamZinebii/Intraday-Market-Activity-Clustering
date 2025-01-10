@@ -1,7 +1,7 @@
 from .base import BaseClustering
 from typing import List
 
-from src.types import Period
+from ..types import Period
 
 import numpy as np
 import itertools

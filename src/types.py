@@ -37,8 +37,8 @@ class Tick:
 
     def __post_init__(self):
         if not (self.ask_price == None or self.bid_price == None) :
-            self.spread = self.ask_price - self.bid_price
-            self.quote_volume_imbalance = (self.ask_volume - self.bid_volume) / (self.ask_volume + self.bid_volume)
+            self.spread = float(self.ask_price) - float(self.bid_price)
+            self.quote_volume_imbalance = (float(self.ask_volume) - float(self.bid_volume)) / (float(self.ask_volume) + float(self.bid_volume))
         else :
             self.spread = None
             self.quote_volume_imbalance = None
@@ -83,6 +83,7 @@ class Period:
     start: int
     end: int
     stocks : List[str]
+    prev_period : None
     tick_data: List[Tick] = field(default_factory=list)
 
 
@@ -176,7 +177,6 @@ class Market:
         for entry in tqdm(os.listdir(year_path)):
             with tarfile.open(f'{year_path}/{entry}', 'r') as tar:
                 for member in (tar.getmembers()):
-                    print(member)
                     day_data = (member.name)
                     stock = day_data.split('/')[7]
                     type = day_data.split('/')[6]

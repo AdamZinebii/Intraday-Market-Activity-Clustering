@@ -3,7 +3,8 @@ from typing import List
 
 import matplotlib.pyplot as plt
 
-from ..types import Period, FEATURES_KEYS
+
+from src.types import Period, FEATURES_KEYS
 
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity
 
@@ -49,8 +50,8 @@ class BaseClustering(ABC):
         np.ndarray
             Array of indices of the closest cluster for each period
         """
-        input_ssv = np.array([x.ssv for x in X])
-        return np.argmin(euclidean_distances(self.ssv, input_ssv), axis=0)
+        input_fv = np.array([x.fv for x in X])
+        return np.argmin(euclidean_distances(self.ssv, input_fv), axis=0)
     
     @property
     def clusters(self):
@@ -76,7 +77,7 @@ class BaseClustering(ABC):
     def centers(self) -> np.ndarray:
         centers = []
         for c in self.clusters:
-            centroid = np.mean([p.ssv for p in c], axis=0)
+            centroid = np.mean([p.fv for p in c], axis=0)
             centers.append(centroid)
         return centers
 
@@ -127,14 +128,14 @@ class BaseClustering(ABC):
         float
             Score of the clustering algorithm
         """
-        return cosine_similarity(self.ssv, [x.ssv for x in X]).mean()
+        return cosine_similarity(self.ssv, [x.fv for x in X]).mean()
     
     def plot_ssv(self):
         fig, ax = plt.subplots(nrows=self.n_clusters, figsize=(10, 5 * self.n_clusters))
 
         for i, ssv in enumerate(self.ssv):
             # Create a bar chart
-            barlist = ax[i].bar(FV_KEYS, ssv)
+            barlist = ax[i].bar(FEATURES_KEYS, ssv)
 
             # Set the color of the bars
             barlist[0].set_color('r')
@@ -248,3 +249,12 @@ class BaseClustering(ABC):
         cbar.set_ticklabels(["8:00 AM", "10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM", "6:00 PM"])  
         ax.set_title(f"Clustered Graph - {method}", fontsize=18)
         plt.show()
+
+    def summarize_clusters(self):
+        print(f"Number of periods: {len(self.periods)}")
+        print(f"Number of clusters: {len(self.clusters)}")
+        print(f"Cluster sizes: {[len(cluster) for cluster in self.clusters]}")
+        print(f"Cluster labels: {self.labels}")
+        #print(f"Cluster centers: {clustering.cluster_centers}")
+        print(f"Transition matrix: \n{self.transition_matrix}")
+

@@ -11,11 +11,11 @@ import networkx as nx
 
 class GreedyClustering(BaseClustering):
     def fit(self, X: List[Period], G: nx.Graph) -> "BaseClustering":
-        self.periods = X
+        self.periods = X[1:]
 
         # Create a graph from the periods and compute the Louvain communities
         communities = nx.community.greedy_modularity_communities(G, weight="weight")
-        num_periods = len(X) 
+        num_periods = len(X) - 1
         labels = [-1] * num_periods  
         for community_id, community in enumerate(communities):
             for period in community:

@@ -180,7 +180,7 @@ class BaseClustering(ABC):
         plt.title(f"Community Graph: {method}", fontsize=15)
         plt.show()
 
-    def plot_cluster(self, periods: List['Period'], method: str) -> None:
+    def plot_cluster(self, method: str) -> None:
         """
         Plot the graph with clusters as fully connected subgraphs and nodes colored by their time period.
 
@@ -205,6 +205,8 @@ class BaseClustering(ABC):
         labels = self.labels  
         cluster_graph = nx.Graph()  
         node_to_cluster = {}  
+
+        periods = self.periods
 
         for i in set(labels):
             cluster_nodes = [idx for idx, label in enumerate(labels) if label == i]

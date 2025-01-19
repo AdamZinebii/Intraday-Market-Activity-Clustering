@@ -1,5 +1,5 @@
 import json
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 from os import error
 from shutil import Error
 
@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import networkx as nx
+
 FEATURES_KEYS = ['trade_price', 'trade_volume', 'spread', 'quote_volume_imbalance']
 DATE_FORMAT = "%Y/%m/%d"
 
@@ -35,15 +36,13 @@ class Tick:
     trade_price: float
     trade_volume: float
 
-
     def __post_init__(self):
-        if not (self.ask_price == None or self.bid_price == None) :
+        if not (self.ask_price == None or self.bid_price == None):
             self.spread = self.ask_price - self.bid_price
             self.quote_volume_imbalance = (self.ask_volume - self.bid_volume) / (self.ask_volume + self.bid_volume)
-        else :
+        else:
             self.spread = None
             self.quote_volume_imbalance = None
-
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Tick":
@@ -72,33 +71,30 @@ class Tick:
             "quote_volume_imbalance": self.quote_volume_imbalance
         }
 
-
-    
     @property
     def features(self) -> List[float]:
         d = self.to_dict()
         return [d[k] for k in FEATURES_KEYS]
-    
+
+
 @dataclass
 class Period:
     start: int
     end: int
-    stocks : List[str]
+    stocks: List[str]
     tick_data: List[Tick] = field(default_factory=list)
-
 
     @property
     def per_stock_ticks(self) -> Dict[str, List[Tick]]:
-        per_stock = {stock : [] for stock in self.stocks}
+        per_stock = {stock: [] for stock in self.stocks}
         for tick in self.tick_data:
             per_stock[tick.stock].append(tick)
         return per_stock
 
     def get_stock_fv(self, stock: str) -> np.ndarray:
         ticks_per_stocks = self.per_stock_ticks
-        stock_data = np.array([t.features for t in ticks_per_stocks[stock] ])
+        stock_data = np.array([t.features for t in ticks_per_stocks[stock]])
         means = []
-
 
         for col in range(len(FEATURES_KEYS)):
             if stock_data.ndim == 1:
@@ -115,7 +111,7 @@ class Period:
 
     def get_stock_fv_ip(self, stock: str) -> np.ndarray:
         ticks_per_stocks = self.per_stock_ticks
-        stock_data = np.array([t.features for t in ticks_per_stocks[stock] ])
+        stock_data = np.array([t.features for t in ticks_per_stocks[stock]])
         stock_data = np.where(stock_data == None, np.nan, stock_data).astype(float)
         mean_trade_price = np.nanmean(stock_data[:, 0])  # Mean of trade prices, ignoring NaNs
         sum_trade_volume = np.nansum(stock_data[:, 1])  # Sum of trade volume, ignoring NaNs
@@ -126,7 +122,6 @@ class Period:
         fv_vals_stock = np.array([mean_trade_price, sum_trade_volume, mean_spread, mean_quote_volume_imbalance])
 
         return fv_vals_stock
-
 
     @property
     def fv(self):
@@ -164,11 +159,12 @@ class Period:
 
         ax.grid()
 
+
 @dataclass
 class Market:
     tick_data: List[Tick]
-    start_date: datetime
-    end_date: datetime
+    start_date: int
+    end_date: int
 
     @property
     def stocks(self):
@@ -188,7 +184,6 @@ class Market:
                     day_data = (member.name)
                     stock = day_data.split('/')[7]
                     type = day_data.split('/')[6]
-                    
 
                     date = datetime.strptime('/'.join(day_data.split('/')[-1].split('-')[:3]), DATE_FORMAT)
                     if (day_data.split('.')[-1]) == 'parquet' and date > start_date and date < end_date:
@@ -196,33 +191,34 @@ class Market:
                         tick_data.extend(Market.extend_from_pandas(df, stock, type))
 
         tick_data = [tick for tick in tick_data if tick.timestamp is not None]
-        stocks  = list(set(tick.stock for tick in tick_data))
+        stocks = list(set(tick.stock for tick in tick_data))
 
-        return cls(tick_data=tick_data, start_date=start_date, end_date=end_date)
-    
+        return cls(tick_data=tick_data, start_date=start_date.timestamp(), end_date=end_date.timestamp())
+
     def from_csv(cls, start_date, end_date, path: str) -> "Market":
         df = pd.read_csv(path)
         return cls.from_pandas(df, start_date=start_date, end_date=end_date)
-    
+
     @classmethod
-    def from_jsonl(cls,  path: str, start_date: str, end_date: str):
+    def from_jsonl(cls, path: str, start_date: str, end_date: str):
         with open(path, 'r') as f:
             tick_data = [Tick.from_dict(json.loads(line)) for line in f]
-        return cls(tick_data=tick_data, start_date=datetime.strptime(start_date, DATE_FORMAT), end_date=datetime.strptime(end_date, DATE_FORMAT))
+        return cls(tick_data=tick_data, start_date=datetime.strptime(start_date, DATE_FORMAT).timestamp(),
+                   end_date=datetime.strptime(end_date, DATE_FORMAT).timestamp())
         # df = pd.read_json(path, lines=True)
         # return cls.from_pandas(df)
 
     @classmethod
     def from_pandas(cls, df, start_date, end_date) -> "Market":
         tick_data = [Tick.from_dict(row.to_dict()) for _, row in df.iterrows()]
-        return cls(tick_data=tick_data, start_date=datetime.strptime(start_date, DATE_FORMAT), end_date=datetime.strptime(end_date, DATE_FORMAT))
+        return cls(tick_data=tick_data, start_date=datetime.strptime(start_date, DATE_FORMAT).timestamp(),
+                   end_date=datetime.strptime(end_date, DATE_FORMAT).timestamp())
 
     @staticmethod
     def extend_from_pandas(df, stock, type):
-        return [Tick.from_dict(Market.to_dict(row,stock, type)) for _, row in df.iterrows() if valid_row(row,type)]
+        return [Tick.from_dict(Market.to_dict(row, stock, type)) for _, row in df.iterrows() if valid_row(row, type)]
 
-
-    def get_periods(self, period_length) -> List[Period]:
+    def get_periods(self, period_length: int) -> List[Period]:
         periods = []
 
         if not self.tick_data:
@@ -244,9 +240,9 @@ class Market:
             if tick.timestamp < end:
                 current_period_data.append(tick)
                 idx += 1
-            elif tick.timestamp > start  and tick.timestamp < self.end_date:
+            elif tick.timestamp > start and tick.timestamp < self.end_date:
                 if current_period_data:
-                    periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks= self.stocks))
+                    periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks=self.stocks))
                 start = end
                 end += period_length
                 current_period_data = []
@@ -255,7 +251,7 @@ class Market:
                     end = self.end_date
             elif tick.timestamp > self.end_date:
                 if current_period_data:
-                    periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks = self.stocks))
+                    periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks=self.stocks))
                 break
 
         return periods
@@ -265,8 +261,8 @@ class Market:
         error_log = []
         if type == 'bbo':
             try:
-                ret =  {
-                    "timestamp": convert_xltime_to_date(row['xltime']),
+                ret = {
+                    "timestamp": row['xltime'],
                     "stock": stock,
                     "bid_price": row['bid-price'],
                     "bid_volume": row['bid-volume'],
@@ -278,9 +274,9 @@ class Market:
                 }
                 return ret
             except (ValueError, TypeError, ZeroDivisionError) as e:
-                error_log.append([e,row])
+                error_log.append([e, row])
                 error_tick += 1
-                ret =  {
+                ret = {
                     "timestamp": None,
                     "stock": None,
                     "bid_price": None,
@@ -293,9 +289,9 @@ class Market:
                 }
                 return ret
         else:
-            try :
+            try:
                 return {
-                    "timestamp": convert_xltime_to_date(row['xltime']),
+                    "timestamp": row['xltime'],
                     "stock": stock,
                     "bid_price": None,
                     "bid_volume": None,
@@ -320,11 +316,8 @@ class Market:
 
                 }
 
-
-
     def compute_correlation_matrix(self, period_length_seconds: int) -> np.ndarray:
-        period_length = (timedelta(seconds=period_length_seconds))
-        periods = self.get_periods(period_length)
+        periods = self.get_periods(period_length_seconds)
         fvs = []
         for period in periods:
             array = period.fv
@@ -334,44 +327,36 @@ class Market:
             fvs.append(array)
         matrice_masque = np.ma.masked_invalid(fvs)
 
-
         # Calculer la matrice de corrélation
         corr_matrix = np.ma.corrcoef(matrice_masque)
-        return  corr_matrix.data
+        return corr_matrix.data
 
     def compute_correlation_matrix_inter(self, period_length_seconds: int) -> np.ndarray:
         fvs = self.get_fvs_inter(period_length_seconds)
 
-
         # Calculer la matrice de corrélation
         corr_matrix = np.ma.corrcoef(fvs)
-        return  corr_matrix.data
+        return corr_matrix.data
 
-
-    def get_fvs(self, period_length_seconds: int):
-        period_length = (timedelta(seconds=period_length_seconds))
+    def get_fvs(self, period_length: int):
         periods = self.get_periods(period_length)
         fvs = []
         for period in periods:
             array = period.fv
 
-
             array[np.isinf(array)] = np.nan
-            fvs.append(array)
-        return  fvs
-
-
-    def get_fvs_inter(self, period_length_seconds: int):
-        period_length = (timedelta(seconds=period_length_seconds))
-        periods = self.get_periods(period_length)
-        fvs = []
-        for i in range(len(periods[1:])):
-            array = (periods[i].fv_inter - periods[i-1].fv_inter)/periods[i-1].fv_inter
             fvs.append(array)
         return fvs
 
-    
-    def build_graph(self, X: List[Period], threshold=0.2, inter=False) -> nx.Graph:
+    def get_fvs_inter(self, period_length: int):
+        periods = self.get_periods(period_length)
+        fvs = []
+        for i in range(len(periods[1:])):
+            array = (periods[i].fv_inter - periods[i - 1].fv_inter) / periods[i - 1].fv_inter
+            fvs.append(array)
+        return fvs
+
+    def build_graph(self, period_length_seconds: int, threshold=0.2, inter=False) -> nx.Graph:
         """
             This method builds a graph from the correlation matrix of the state vectors of the days.
             Each period is represented as a node in the graph and the edges are weighted by the correlation, with no edges
@@ -381,25 +366,24 @@ class Market:
                 period_length: int - the length of the periods to consider.
                 threshold: float - the minimum correlation value for an edge to be added to the graph
                 inter: Boolean - if true use the inter correlation approximation
-            return: nx.Graph - the graph representing the correlation between the periods. 
+            return: nx.Graph - the graph representing the correlation between the periods.
         """
-        periods = X
         if inter:
-            corr_matrix = self.compute_correlation_matrix_inter(X)
+            corr_matrix = self.compute_correlation_matrix_inter(period_length_seconds)
         else:
-            corr_matrix = self.compute_correlation_matrix(X)
-     
-        n = len(periods)
+            corr_matrix = self.compute_correlation_matrix(period_length_seconds)
+
+        n = corr_matrix.shape[0]
         G = nx.Graph()
         for i in range(n):
-            for j in range(i+1, n):
+            for j in range(i + 1, n):
                 corr = corr_matrix[i, j]
-                if abs(corr) > threshold: 
+                if abs(corr) > threshold:
                     G.add_edge(i, j, weight=corr)
         # Display Graph
         self.plot_graph(G)
         return G
-    
+
     def plot_graph(self, G: nx.Graph):
         """
             This method plots the graph G.
@@ -414,7 +398,6 @@ class Market:
 
     def __getitem__(self, key):
         return self.tick_data[key]
-
 
 
 def convert_xltime_to_date(xl_time):
@@ -466,6 +449,7 @@ def pct_change_ignore_nan(series):
 
     return result
 
+
 def is_before_8h30(xl_time):
     """
     Vérifie si l'heure est avant 8h30.
@@ -473,9 +457,10 @@ def is_before_8h30(xl_time):
     date_time = convert_xltime_to_date(xl_time)
     return date_time.time() < datetime.strptime('08:00', '%H:%M').time()
 
-def valid_row(row,type):
-    if (type=='trade'):
-        if  (row['trade-stringflag'] == 'theoricalprice' or row['trade-stringflag'] == 'late0day|offbook'):
+
+def valid_row(row, type):
+    if (type == 'trade'):
+        if (row['trade-stringflag'] == 'theoricalprice' or row['trade-stringflag'] == 'late0day|offbook'):
             return False
 
     if is_before_8h30(row['xltime']):

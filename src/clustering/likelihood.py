@@ -1,7 +1,7 @@
 from .base import BaseClustering
 from typing import List
 
-from src.types import Period
+from src.types import Period, Market
 
 import numpy as np
 import multiprocessing as mp
@@ -118,9 +118,14 @@ class LikelihoodClustering(BaseClustering):
 
     def fit(self, X: List[Period], **kwargs) -> "BaseClustering":
         self.periods = X
-        correlation_matrix = np.random.rand(len(X), len(X))
-        best_solution, best_score = self.solver(correlation_matrix, **kwargs)
+
+        corr = Market.compute_correlation_matrix(self.periods)
+
+        assert len(self.periods) == corr.shape[0], 'Number of periods must match the number of rows in the correlation matrix'
+
+        best_solution, best_score = self.solver(corr, **kwargs)
         print(f'Best solution : {best_solution}')
         print(f'Best score : {best_score:.4f}')
         self.labels = best_solution
+
         return self

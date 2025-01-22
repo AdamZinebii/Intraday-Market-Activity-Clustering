@@ -85,6 +85,7 @@ class Period:
     start: int
     end: int
     stocks: List[str]
+    feature_vector : List[float] = field(default_factory=list)
     tick_data: List[Tick] = field(default_factory=list)
 
     @property
@@ -265,6 +266,7 @@ class Market:
             if idx >= len(data):
                 break
 
+
             tick = data[idx]
 
             # If the tick is within the current period, add it to the current period data
@@ -286,8 +288,8 @@ class Market:
                 if current_period_data:
                     periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks=self.stocks))
                 break
-
-        return periods
+        nperiods = affect_fvs(periods)
+        return nperiods
 
     @staticmethod
     def to_dict(row, stock: str, type: str) -> Dict[str, Any]:
@@ -364,7 +366,7 @@ class Market:
         return corr_matrix.data
 
     def compute_correlation_matrix_inter(self, periods: Period) -> np.ndarray:
-        fvs = self.get_fvs_inter(periods)
+        fvs = [period.feature_vector for period in periods]
 
         # Calculer la matrice de corrélation
         corr_matrix = np.ma.corrcoef(fvs)
@@ -381,8 +383,8 @@ class Market:
 
     def get_fvs_inter(self, periods: Period):
         fvs = []
-        for i in range(len(periods[1:])):
-            array = (periods[i].fv_inter - periods[i - 1].fv_inter) / periods[i - 1].fv_inter
+        for i in range(1, len(periods)):
+            array = (periods[i].fv_inter - periods[i -1].fv_inter) / periods[i-1].fv_inter
             fvs.append(array)
         return fvs
 
@@ -507,3 +509,12 @@ def valid_row(row, type):
         return False
 
     return True
+
+def affect_fvs(periods):
+    new_periods = []
+    #new_periods.append(Period(start=periods[0].start, end=periods[0].end, tick_data=periods[0].tick_data, stocks=periods[0].stocks))
+    for i in range(1,len(periods)):
+        array = (periods[i].fv_inter - periods[i - 1].fv_inter) / periods[i - 1].fv_inter
+        new_periods.append(Period(start=periods[i].start, end=periods[i].end, tick_data=periods[i].tick_data, stocks=periods[i].stocks, feature_vector=array))
+
+    return new_periods

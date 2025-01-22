@@ -369,13 +369,23 @@ class Market:
     @staticmethod
     def _compute_correlation_matrix_inter(periods: Period) -> np.ndarray:
         fvs = [period.feature_vector for period in periods]
-        fv_inters = [period.fv_inter for period in periods]
-        print(np.isnan(fvs).sum() / (len(fvs)*len(fvs[0])))
-        print(np.isnan(fv_inters).sum() / (len(fv_inters)*len(fv_inters[0])))
+        fvs = np.array(fvs)
+        fvs[np.isinf(fvs)] = np.nan
+        #for i in range(1,len(fvs)):
+         #   nan_mask = np.isnan(fvs[i])
+          #  fvs[i,nan_mask] = fvs[i-1,nan_mask]
+        n = len(fvs)
+        corr_matrix = np.full((n,n), 1.0)
+        for i in range(n):
+            for j in range(n):
+                valid_mask = ~np.isnan(fvs[i]) & ~np.isnan(fvs[j])
+                if np.any(valid_mask):  # Ensure there's at least one valid pair
+                    corr_matrix[i, j] = np.corrcoef(fvs[i][valid_mask], fvs[j][valid_mask])[0, 1]
+                    if np.isnan(corr_matrix[i, j]):
+                        print('erere',i,j)
+                        print(fvs[i],fvs[j])
+        return corr_matrix
 
-        # Calculer la matrice de corrélation
-        corr_matrix = np.ma.corrcoef(fvs)
-        return corr_matrix.data
     
     @staticmethod
     def compute_correlation_matrix(periods: Period, method: Literal['intra', 'inter'] = 'inter') -> np.ndarray:
@@ -417,10 +427,10 @@ class Market:
         """
         # Step 1: Compute the raw correlation matrix
         if inter:
-            corr_matrix = self.compute_correlation_matrix_inter(periods)
+            corr_matrix = self.compute_correlation_matrix(periods, method='inter')
             print(corr_matrix)
         else:
-            corr_matrix = self.compute_correlation_matrix(periods)
+            corr_matrix = self.compute_correlation_matrix(periods, method='inter')
             print(corr_matrix)
 
         # Step 2: Filter the correlation matrix based on filter_type
@@ -557,7 +567,7 @@ def is_before_8h30(xl_time):
         check time of the data is before 8:30:00
     """
     date_time = convert_xltime_to_date(xl_time)
-    return date_time.time() < datetime.strptime('08:00', '%H:%M').time()
+    return date_time.time() < datetime.strptime('08:00', '%H:%M').time() or date_time.time() >= datetime.strptime('16:30', '%H:%M').time()
 
 
 def valid_row(row, type):
@@ -575,6 +585,7 @@ def affect_fvs(periods):
     #new_periods.append(Period(start=periods[0].start, end=periods[0].end, tick_data=periods[0].tick_data, stocks=periods[0].stocks))
     for i in range(1,len(periods)):
         array = (periods[i].fv_inter - periods[i - 1].fv_inter) / periods[i - 1].fv_inter
+        
         new_periods.append(Period(start=periods[i].start, end=periods[i].end, tick_data=periods[i].tick_data, stocks=periods[i].stocks, feature_vector=array))
 
     return new_periods

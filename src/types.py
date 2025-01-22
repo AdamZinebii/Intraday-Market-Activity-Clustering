@@ -6,7 +6,7 @@ import time
 
 from nbclient.client import timestamp
 from tqdm import tqdm
-from typing import Dict, List, Any, Union, TypedDict
+from typing import Dict, List, Any, Union, TypedDict, Literal
 from dataclasses import dataclass, field
 import os
 import pandas as pd
@@ -350,7 +350,8 @@ class Market:
                     "trade_volume": None
                 }
 
-    def compute_correlation_matrix(self, periods: Period) -> np.ndarray:
+    @staticmethod
+    def _compute_correlation_matrix_intra(periods: Period) -> np.ndarray:
         # periods = self.get_periods(period_length_seconds)
         fvs = []
         for period in periods:
@@ -365,7 +366,8 @@ class Market:
         corr_matrix = np.ma.corrcoef(matrice_masque)
         return corr_matrix.data
 
-    def compute_correlation_matrix_inter(self, periods: Period) -> np.ndarray:
+    @staticmethod
+    def _compute_correlation_matrix_inter(periods: Period) -> np.ndarray:
         fvs = [period.feature_vector for period in periods]
         fv_inters = [period.fv_inter for period in periods]
         print(np.isnan(fvs).sum() / (len(fvs)*len(fvs[0])))
@@ -374,6 +376,15 @@ class Market:
         # Calculer la matrice de corrélation
         corr_matrix = np.ma.corrcoef(fvs)
         return corr_matrix.data
+    
+    @staticmethod
+    def compute_correlation_matrix(periods: Period, method: Literal['intra', 'inter'] = 'inter') -> np.ndarray:
+        if method == 'intra':
+            return Market._compute_correlation_matrix_intra(periods)
+        elif method == 'inter':
+            return Market._compute_correlation_matrix_inter(periods)
+        else:
+            raise ValueError(f"Unknown method: {method}")
 
     def get_fvs(self, periods: Period):
         fvs = []

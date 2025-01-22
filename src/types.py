@@ -367,6 +367,9 @@ class Market:
 
     def compute_correlation_matrix_inter(self, periods: Period) -> np.ndarray:
         fvs = [period.feature_vector for period in periods]
+        fv_inters = [period.fv_inter for period in periods]
+        print(np.isnan(fvs).sum() / (len(fvs)*len(fvs[0])))
+        print(np.isnan(fv_inters).sum() / (len(fv_inters)*len(fv_inters[0])))
 
         # Calculer la matrice de corrélation
         corr_matrix = np.ma.corrcoef(fvs)
@@ -388,23 +391,36 @@ class Market:
             fvs.append(array)
         return fvs
 
-    def build_graph(self, periods: Period, threshold=0.2, inter=False) -> nx.Graph:
+    def build_graph(self, periods: Period, threshold=0.2, inter=False, filter_type=None) -> nx.Graph:
         """
-            This method builds a graph from the correlation matrix of the state vectors of the days.
-            Each period is represented as a node in the graph and the edges are weighted by the correlation, with no edges
-            when correlation is below the threshold.
+        Builds a graph from the filtered correlation matrix of the state vectors.
 
-            params:
-                period_length: int - the length of the periods to consider.
-                threshold: float - the minimum correlation value for an edge to be added to the graph
-                inter: Boolean - if true use the inter correlation approximation
-            return: nx.Graph - the graph representing the correlation between the periods.
+        params:
+            periods: Period - the periods to consider.
+            threshold: float - the minimum correlation value for an edge to be added to the graph.
+            inter: Boolean - if true, use the inter-correlation approximation.
+            filter_type: str - type of filtered correlation matrix to use 
+                            ('delta', 's', 'g', or None for raw correlations).
+
+        return: nx.Graph - the graph representing the filtered correlations.
         """
+        # Step 1: Compute the raw correlation matrix
         if inter:
             corr_matrix = self.compute_correlation_matrix_inter(periods)
+            print(corr_matrix)
         else:
             corr_matrix = self.compute_correlation_matrix(periods)
+            print(corr_matrix)
 
+        # Step 2: Filter the correlation matrix based on filter_type
+        if filter_type == 'delta':
+            corr_matrix = self.filter_delta(corr_matrix)
+        elif filter_type == 's':
+            corr_matrix = self.filter_s(corr_matrix)
+        elif filter_type == 'g':
+            corr_matrix = self.filter_g(corr_matrix)
+
+        # Step 3: Build the graph
         n = corr_matrix.shape[0]
         G = nx.Graph()
         for i in range(n):
@@ -412,9 +428,42 @@ class Market:
                 corr = corr_matrix[i, j]
                 if abs(corr) > threshold:
                     G.add_edge(i, j, weight=corr)
+
         # Display Graph
         self.plot_graph(G)
         return G
+    
+
+    def filter_delta(self, corr_matrix):
+        """
+        Subtracts the identity matrix from the correlation matrix.
+        """
+        return corr_matrix - np.eye(corr_matrix.shape[0])
+    
+    def filter_s(self, corr_matrix):
+        """
+        Filters the random noise component using Random Matrix Theory (RMT).
+        """
+        eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
+        threshold = self.rmt_threshold(corr_matrix.shape[0])
+        filtered_eigenvalues = np.where(eigenvalues > threshold, eigenvalues, 0)
+        return eigenvectors @ np.diag(filtered_eigenvalues) @ eigenvectors.T
+    
+    def filter_g(self, corr_matrix):
+        """
+        Subtracts both the random noise and the global (market) mode.
+        """
+        eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
+        global_mode = np.max(eigenvalues)
+        filtered_eigenvalues = np.where(eigenvalues != global_mode, eigenvalues, 0)
+        return eigenvectors @ np.diag(filtered_eigenvalues) @ eigenvectors.T
+
+    def rmt_threshold(self, size):
+        """
+        Returns the RMT threshold for the eigenvalues of a random matrix.
+        """
+        q = size / size  # Adjust for T/N ratio if needed
+        return (1 + np.sqrt(q)) ** 2
 
     def plot_graph(self, G: nx.Graph):
         """
@@ -494,7 +543,7 @@ def pct_change_ignore_nan(series):
 
 def is_before_8h30(xl_time):
     """
-    Vérifie si l'heure est avant 8h30.
+        check time of the data is before 8:30:00
     """
     date_time = convert_xltime_to_date(xl_time)
     return date_time.time() < datetime.strptime('08:00', '%H:%M').time()

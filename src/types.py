@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timedelta
 from os import error
 from shutil import Error
+import time
 
 from nbclient.client import timestamp
 from tqdm import tqdm
@@ -38,8 +39,11 @@ class Tick:
 
     def __post_init__(self):
         if not (self.ask_price == None or self.bid_price == None):
-            self.spread = self.ask_price - self.bid_price
-            self.quote_volume_imbalance = (self.ask_volume - self.bid_volume) / (self.ask_volume + self.bid_volume)
+            self.spread = float(self.ask_price) - float(self.bid_price)
+            if (self.ask_volume + self.bid_volume) != 0:
+                self.quote_volume_imbalance = (float(self.ask_volume) - float(self.bid_volume)) / (self.ask_volume + self.bid_volume) 
+            else:
+                self.quote_volume_imbalance = None
         else:
             self.spread = None
             self.quote_volume_imbalance = None
@@ -84,7 +88,6 @@ class Period:
     tick_data: List[Tick] = field(default_factory=list)
 
     @property
-
     def per_stock_ticks(self) -> Dict[str, List[Tick]]:
         per_stock = {stock: [] for stock in self.stocks}
         for tick in self.tick_data:
@@ -112,6 +115,8 @@ class Period:
     def get_stock_fv_ip(self, stock: str) -> np.ndarray:
         ticks_per_stocks = self.per_stock_ticks
         stock_data = np.array([t.features for t in ticks_per_stocks[stock]])
+        if stock_data.shape[0] == 0:
+            return np.array([0, 0, 0, 0])   
         stock_data = np.where(stock_data == None, np.nan, stock_data).astype(float)
         mean_trade_price = np.nanmean(stock_data[:, 0])  # Mean of trade prices, ignoring NaNs
         sum_trade_volume = np.nansum(stock_data[:, 1])  # Sum of trade volume, ignoring NaNs
@@ -144,14 +149,14 @@ class Period:
     def stocks(self):
         return set(t.stock for t in self.tick_data)
 
-    @property
-    def per_stock_ticks(self) -> Dict[str, List[Tick]]:
-        per_stock = {}
-        for tick in self.tick_data:
-            if tick.stock not in per_stock:
-                per_stock[tick.stock] = []
-            per_stock[tick.stock].append(tick)
-        return per_stock
+    # @property
+    # def per_stock_ticks(self) -> Dict[str, List[Tick]]:
+    #     per_stock = {}
+    #     for tick in self.tick_data:
+    #         if tick.stock not in per_stock:
+    #             per_stock[tick.stock] = []
+    #         per_stock[tick.stock].append(tick)
+    #     return per_stock
         
     def get_stock_fv(self, stock: str) -> np.ndarray:
         stock_data = np.array([t.features for t in self.per_stock_ticks.get(stock, [])])
@@ -202,10 +207,10 @@ class Market:
         tick_data = []
         start_date = datetime.strptime(start, DATE_FORMAT)
         end_date = datetime.strptime(end, DATE_FORMAT)
+
         for entry in tqdm(os.listdir(year_path)):
             with tarfile.open(f'{year_path}/{entry}', 'r') as tar:
                 for member in (tar.getmembers()):
-                    print(member)
                     day_data = (member.name)
                     stock = day_data.split('/')[7]
                     type = day_data.split('/')[6]
@@ -247,12 +252,12 @@ class Market:
         periods = []
 
         if not self.tick_data:
+            print("No tick data available")
             return periods
 
         data = sorted(self.tick_data, key=lambda t: t.timestamp)
         start = self.start_date
         end = self.start_date + period_length
-
         current_period_data = []
         idx = 0
 
@@ -262,9 +267,11 @@ class Market:
 
             tick = data[idx]
 
+            # If the tick is within the current period, add it to the current period data
             if tick.timestamp < end:
                 current_period_data.append(tick)
                 idx += 1
+            # If the tick is before the current period, skip it
             elif tick.timestamp > start and tick.timestamp < self.end_date:
                 if current_period_data:
                     periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks=self.stocks))
@@ -274,6 +281,7 @@ class Market:
 
                 if end >= self.end_date:
                     end = self.end_date
+            # If the tick is after the current period, create a new period
             elif tick.timestamp > self.end_date:
                 if current_period_data:
                     periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks=self.stocks))
@@ -284,24 +292,28 @@ class Market:
     @staticmethod
     def to_dict(row, stock: str, type: str) -> Dict[str, Any]:
         error_log = []
+        def safe_float(value):
+            """Converts value to float if possible, returns None otherwise."""
+            try:
+                return float(value) if value is not None else None
+            except (ValueError, TypeError):
+                return None
+
         if type == 'bbo':
             try:
-                ret = {
-                    "timestamp": row['xltime'],
+                return {
+                    "timestamp": xltime_to_timestamp(row.get('xltime')),
                     "stock": stock,
-                    "bid_price": row['bid-price'],
-                    "bid_volume": row['bid-volume'],
-                    "ask_price": row['ask-price'],
-                    "ask_volume": row['ask-volume'],
+                    "bid_price": safe_float(row.get('bid-price')),
+                    "bid_volume": safe_float(row.get('bid-volume')),
+                    "ask_price": safe_float(row.get('ask-price')),
+                    "ask_volume": safe_float(row.get('ask-volume')),
                     "trade_price": None,
                     "trade_volume": None
-
                 }
-                return ret
-            except (ValueError, TypeError, ZeroDivisionError) as e:
+            except Exception as e:
                 error_log.append([e, row])
-                error_tick += 1
-                ret = {
+                return {
                     "timestamp": None,
                     "stock": None,
                     "bid_price": None,
@@ -310,25 +322,21 @@ class Market:
                     "ask_volume": None,
                     "trade_price": None,
                     "trade_volume": None
-
                 }
-                return ret
         else:
             try:
                 return {
-                    "timestamp": row['xltime'],
+                    "timestamp": xltime_to_timestamp(row.get('xltime')),
                     "stock": stock,
                     "bid_price": None,
                     "bid_volume": None,
                     "ask_price": None,
                     "ask_volume": None,
-                    "trade_price": row['trade-price'],
-                    "trade_volume": row['trade-volume']
-
+                    "trade_price": safe_float(row.get('trade-price')),
+                    "trade_volume": safe_float(row.get('trade-volume'))
                 }
-            except (ValueError, TypeError, ZeroDivisionError) as e:
+            except Exception as e:
                 error_log.append([e, row])
-                error_tick += 1
                 return {
                     "timestamp": None,
                     "stock": None,
@@ -337,12 +345,11 @@ class Market:
                     "ask_price": None,
                     "ask_volume": None,
                     "trade_price": None,
-                    "trade_volume": None,
-
+                    "trade_volume": None
                 }
 
-    def compute_correlation_matrix(self, period_length_seconds: int) -> np.ndarray:
-        periods = self.get_periods(period_length_seconds)
+    def compute_correlation_matrix(self, periods: Period) -> np.ndarray:
+        # periods = self.get_periods(period_length_seconds)
         fvs = []
         for period in periods:
             array = period.fv
@@ -356,15 +363,14 @@ class Market:
         corr_matrix = np.ma.corrcoef(matrice_masque)
         return corr_matrix.data
 
-    def compute_correlation_matrix_inter(self, period_length_seconds: int) -> np.ndarray:
-        fvs = self.get_fvs_inter(period_length_seconds)
+    def compute_correlation_matrix_inter(self, periods: Period) -> np.ndarray:
+        fvs = self.get_fvs_inter(periods)
 
         # Calculer la matrice de corrélation
         corr_matrix = np.ma.corrcoef(fvs)
         return corr_matrix.data
 
-    def get_fvs(self, period_length: int):
-        periods = self.get_periods(period_length)
+    def get_fvs(self, periods: Period):
         fvs = []
         for period in periods:
             array = period.fv
@@ -373,15 +379,14 @@ class Market:
             fvs.append(array)
         return fvs
 
-    def get_fvs_inter(self, period_length: int):
-        periods = self.get_periods(period_length)
+    def get_fvs_inter(self, periods: Period):
         fvs = []
         for i in range(len(periods[1:])):
             array = (periods[i].fv_inter - periods[i - 1].fv_inter) / periods[i - 1].fv_inter
             fvs.append(array)
         return fvs
 
-    def build_graph(self, period_length_seconds: int, threshold=0.2, inter=False) -> nx.Graph:
+    def build_graph(self, periods: Period, threshold=0.2, inter=False) -> nx.Graph:
         """
             This method builds a graph from the correlation matrix of the state vectors of the days.
             Each period is represented as a node in the graph and the edges are weighted by the correlation, with no edges
@@ -394,9 +399,9 @@ class Market:
             return: nx.Graph - the graph representing the correlation between the periods.
         """
         if inter:
-            corr_matrix = self.compute_correlation_matrix_inter(period_length_seconds)
+            corr_matrix = self.compute_correlation_matrix_inter(periods)
         else:
-            corr_matrix = self.compute_correlation_matrix(period_length_seconds)
+            corr_matrix = self.compute_correlation_matrix(periods)
 
         n = corr_matrix.shape[0]
         G = nx.Graph()
@@ -428,6 +433,16 @@ class Market:
 def convert_xltime_to_date(xl_time):
     excel_start_date = datetime(1899, 12, 30)  # Excel incorrectly considers 1900 as a leap year
     return excel_start_date + timedelta(days=float(xl_time))
+
+def xltime_to_timestamp(xltime, mac=False):
+    # Définir l'origine Excel
+    excel_epoch = datetime(1904, 1, 1) if mac else datetime(1899, 12, 30)
+    
+    # Ajouter les jours (XLTime) à l'origine
+    excel_date = excel_epoch + timedelta(days=xltime)
+    
+    # Convertir en timestamp Unix
+    return int(excel_date.timestamp())
 
 
 def forward_fill(array):

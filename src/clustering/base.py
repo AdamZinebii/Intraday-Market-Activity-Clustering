@@ -265,7 +265,7 @@ class BaseClustering(ABC):
         """
         Plot the graph with clusters as fully connected subgraphs and nodes colored by their time period.
         Clusters are spatially separated to prevent overlap. Additionally, save and print stats of the number
-        of periods per hour. Nodes with times after 17:00 are excluded from the plot.
+        of periods per hour. Nodes with times after 16:00 are excluded from the plot.
         """
         labels = self.labels  
         cluster_graph = nx.Graph()  
@@ -287,13 +287,13 @@ class BaseClustering(ABC):
 
         time_values = [get_time_of_day(periods[node]) for node in cluster_graph.nodes]
         
-        # Exclude nodes with times after 17:00
-        filtered_nodes = [node for node, time in zip(cluster_graph.nodes, time_values) if time <= 17]
+        # Exclude nodes with times after 16:00 (4:00 PM)
+        filtered_nodes = [node for node, time in zip(cluster_graph.nodes, time_values) if time <= 16]
         cluster_graph = cluster_graph.subgraph(filtered_nodes).copy()
         time_values = [get_time_of_day(periods[node]) for node in cluster_graph.nodes]
 
         cmap = plt.cm.RdYlGn.reversed()
-        norm = mcolors.Normalize(vmin=8, vmax=16.5)
+        norm = mcolors.Normalize(vmin=8, vmax=16)
         node_colors = [cmap(norm(v)) for v in time_values]
 
         # Save and print statistics of periods per hour
@@ -366,8 +366,8 @@ class BaseClustering(ABC):
         sm.set_array([])
         cbar = fig.colorbar(sm, ax=ax, shrink=0.8)
         cbar.set_label("Time of Day (Market Hours)", fontsize=12)
-        cbar.set_ticks([8, 10, 12, 14, 16, 16.5])
-        cbar.set_ticklabels(["8:00 AM", "10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM", "4:30 PM"])
+        cbar.set_ticks([8, 10, 12, 14, 16])
+        cbar.set_ticklabels(["8:00 AM", "10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM"])
 
         # Final touches
         ax.set_title(f"Clustered Graph - {method}", fontsize=20, pad=20)

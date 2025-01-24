@@ -96,7 +96,7 @@ class BaseClustering(ABC):
             centroid = np.mean(means, axis=0)
 
 
-            print(centroid)
+            # print(centroid)
             centers.append(centroid)
         return centers
 
@@ -153,6 +153,10 @@ class BaseClustering(ABC):
         fig, ax = plt.subplots(nrows=self.n_clusters, figsize=(10, 5 * self.n_clusters))
 
         for i, ssv in enumerate(self.ssv):
+            # Check if ssv is nan
+            if np.isnan(ssv).any():
+                continue
+            print("SSV", ssv)
             # Create a bar chart
             barlist = ax[i].bar(FEATURES_KEYS, ssv)
 

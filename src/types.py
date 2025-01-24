@@ -267,9 +267,7 @@ class Market:
             if idx >= len(data):
                 break
 
-
             tick = data[idx]
-
             # If the tick is within the current period, add it to the current period data
             if tick.timestamp < end:
                 current_period_data.append(tick)
@@ -538,16 +536,24 @@ class Market:
         """
         eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
         max_idx = np.argmax(eigenvalues)
+        
+        # Always initialize filtered_eigenvalues
+        filtered_eigenvalues = eigenvalues.copy()
+        
+        # Zero out the global mode if the eigenvector is "market-like"
         if np.all(eigenvectors[:, max_idx] > 0):
-            filtered_eigenvalues = eigenvalues.copy()
             filtered_eigenvalues[max_idx] = 0  # Zero out the global mode
+        
         return eigenvectors @ np.diag(filtered_eigenvalues) @ eigenvectors.T
 
-    def rmt_threshold(self, T, N):
-        q = T / N  # Actual ratio of time points to assets
+    def rmt_threshold(self, size):
+        """
+        Returns the RMT threshold for the eigenvalues of a random matrix.
+        """
+        q = size / size  # Adjust for T/N ratio if needed
         return (1 + np.sqrt(q)) ** 2
     
-    def make_psd(matrix):
+    def make_psd(self, matrix):
         eigenvalues, eigenvectors = eigh(matrix)
         eigenvalues = np.maximum(eigenvalues, 0)  # Clamp negative eigenvalues to 0
         return eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T

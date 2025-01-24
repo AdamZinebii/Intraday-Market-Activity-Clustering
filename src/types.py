@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import networkx as nx
+from scipy.linalg import eigh
 
 FEATURES_KEYS = ['trade_price', 'trade_volume', 'spread', 'quote_volume_imbalance']
 DATE_FORMAT = "%Y/%m/%d"
@@ -290,6 +291,59 @@ class Market:
                 break
         nperiods = affect_fvs(periods)
         return nperiods
+    
+    def get_periods_fast(self, period_length: int) -> List[Period]:
+        if not self.tick_data:
+            print("No tick data available")
+            return []
+
+        # Sort and filter ticks within the valid date range
+        sorted_ticks = sorted(self.tick_data, key=lambda t: t.timestamp)
+        valid_ticks = [t for t in sorted_ticks if t.timestamp <= self.end_date]
+
+        periods = []
+        current_start = None
+        current_end = None
+        current_data = []
+
+        for tick in tqdm(valid_ticks):
+            # Calculate the period this tick belongs to
+            delta = tick.timestamp - self.start_date
+            period_num = delta // period_length
+            period_start = self.start_date + period_num * period_length
+            period_end = period_start + period_length
+
+            # Ensure the period does not exceed the end date
+            if period_end > self.end_date:
+                period_end = self.end_date
+
+            # Check if this tick is part of the current period
+            if (period_start, period_end) == (current_start, current_end):
+                current_data.append(tick)
+            else:
+                # Save the current period if it has data
+                if current_data:
+                    periods.append(Period(
+                        start=current_start,
+                        end=current_end,
+                        tick_data=current_data,
+                        stocks=self.stocks
+                    ))
+                # Start a new period
+                current_start, current_end = period_start, period_end
+                current_data = [tick]
+
+        # Add the last collected period
+        if current_data:
+            periods.append(Period(
+                start=current_start,
+                end=current_end,
+                tick_data=current_data,
+                stocks=self.stocks
+            ))
+
+        nperiods = affect_fvs(periods)
+        return nperiods
 
     @staticmethod
     def to_dict(row, stock: str, type: str) -> Dict[str, Any]:
@@ -412,45 +466,53 @@ class Market:
             fvs.append(array)
         return fvs
 
-    def build_graph(self, periods: Period, threshold=0.2, inter=False, filter_type=None) -> nx.Graph:
+    def build_graph(
+        self, 
+        periods: Period, 
+        threshold: float = 0.2, 
+        inter: bool = False, 
+        filter_type: str = None
+    ) -> nx.Graph:
         """
-        Builds a graph from the filtered correlation matrix of the state vectors.
-
-        params:
-            periods: Period - the periods to consider.
-            threshold: float - the minimum correlation value for an edge to be added to the graph.
-            inter: Boolean - if true, use the inter-correlation approximation.
-            filter_type: str - type of filtered correlation matrix to use 
-                            ('delta', 's', 'g', or None for raw correlations).
-
-        return: nx.Graph - the graph representing the filtered correlations.
+        Builds a graph from the filtered correlation matrix.
+        
+        Args:
+            periods: The periods to consider.
+            threshold: Minimum correlation for an edge (default: 0.2).
+            inter: If True, use inter-correlation; else intra-correlation.
+            filter_type: Type of filter ('delta', 's', 'g', or None).
+            
+        Returns:
+            nx.Graph: Graph representing filtered correlations.
         """
-        # Step 1: Compute the raw correlation matrix
-        if inter:
-            corr_matrix = self.compute_correlation_matrix(periods, method='inter')
-            print(corr_matrix)
-        else:
-            corr_matrix = self.compute_correlation_matrix(periods, method='inter')
-            print(corr_matrix)
-
-        # Step 2: Filter the correlation matrix based on filter_type
+        # Step 1: Compute correlation matrix
+        method = 'inter' if inter else 'intra'
+        corr_matrix = self.compute_correlation_matrix(periods, method=method)
+        
+        # Step 2: Apply filter
         if filter_type == 'delta':
             corr_matrix = self.filter_delta(corr_matrix)
         elif filter_type == 's':
             corr_matrix = self.filter_s(corr_matrix)
         elif filter_type == 'g':
             corr_matrix = self.filter_g(corr_matrix)
-
-        # Step 3: Build the graph
+        
+        # Step 3: Ensure symmetry and PSD
+        corr_matrix = (corr_matrix + corr_matrix.T) / 2
+        corr_matrix = self.make_psd(corr_matrix)
+        
+        # Step 4: Build graph using vectorized operations
         n = corr_matrix.shape[0]
         G = nx.Graph()
-        for i in range(n):
-            for j in range(i + 1, n):
-                corr = corr_matrix[i, j]
-                if abs(corr) > threshold:
-                    G.add_edge(i, j, weight=corr)
-
-        # Display Graph
+        i, j = np.triu_indices(n, k=1)
+        edges = corr_matrix[i, j]
+        mask = edges > threshold  # Assuming positive correlations only
+        
+        # Add edges and weights
+        G.add_edges_from(zip(i[mask], j[mask]))
+        for u, v in zip(i[mask], j[mask]):
+            G[u][v]['weight'] = corr_matrix[u, v]
+        
         self.plot_graph(G)
         return G
     
@@ -475,16 +537,21 @@ class Market:
         Subtracts both the random noise and the global (market) mode.
         """
         eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
-        global_mode = np.max(eigenvalues)
-        filtered_eigenvalues = np.where(eigenvalues != global_mode, eigenvalues, 0)
+        max_idx = np.argmax(eigenvalues)
+        if np.all(eigenvectors[:, max_idx] > 0):
+            filtered_eigenvalues = eigenvalues.copy()
+            filtered_eigenvalues[max_idx] = 0  # Zero out the global mode
         return eigenvectors @ np.diag(filtered_eigenvalues) @ eigenvectors.T
 
-    def rmt_threshold(self, size):
-        """
-        Returns the RMT threshold for the eigenvalues of a random matrix.
-        """
-        q = size / size  # Adjust for T/N ratio if needed
+    def rmt_threshold(self, T, N):
+        q = T / N  # Actual ratio of time points to assets
         return (1 + np.sqrt(q)) ** 2
+    
+    def make_psd(matrix):
+        eigenvalues, eigenvectors = eigh(matrix)
+        eigenvalues = np.maximum(eigenvalues, 0)  # Clamp negative eigenvalues to 0
+        return eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+
 
     def plot_graph(self, G: nx.Graph):
         """

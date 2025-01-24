@@ -84,7 +84,19 @@ class BaseClustering(ABC):
     def centers(self) -> np.ndarray:
         centers = []
         for c in self.clusters:
+
+
+            # Calculer la moyenne pour chaque colonne
+            means = []
             centroid = np.mean([p.feature_vector for p in c], axis=0)
+            for p in c:
+                fv_resh = p.feature_vector.reshape(-1, 4)
+                stock_means = fv_resh.mean(axis=0)
+                means.append(stock_means)
+            centroid = np.mean(means, axis=0)
+
+
+            print(centroid)
             centers.append(centroid)
         return centers
 
@@ -191,75 +203,6 @@ class BaseClustering(ABC):
 
         plt.title(f"Community Graph: {method}", fontsize=15)
         plt.show()
-
-    # def plot_cluster(self, method: str) -> None:
-    #     """
-    #     Plot the graph with clusters as fully connected subgraphs and nodes colored by their time period.
-
-    #     Parameters
-    #     ----------
-    #     method : str
-    #         Name of the community detection method.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-
-    #     labels = self.labels  
-    #     cluster_graph = nx.Graph()  
-    #     node_to_cluster = {}  
-
-    #     periods = self.periods
-
-    #     # Create clusters in the graph
-    #     for i in set(labels):
-    #         cluster_nodes = [idx for idx, label in enumerate(labels) if label == i]
-    #         cluster_graph.add_nodes_from(cluster_nodes)
-    #         cluster_graph.add_edges_from([(u, v) for u in cluster_nodes for v in cluster_nodes if u < v])
-            
-    #         for node in cluster_nodes:
-    #             node_to_cluster[node] = i
-
-    #     def get_time_of_day(period: 'Period') -> float:
-    #         timestamp = period.start
-    #         dt = datetime.fromtimestamp(timestamp)
-    #         return dt.hour + dt.minute / 60  
-
-    #     # Map node colors based on time of day
-    #     time_of_day_values = [get_time_of_day(periods[node]) for node in cluster_graph.nodes]
-    #     cmap = plt.cm.RdYlGn.reversed()  
-    #     norm = mcolors.Normalize(vmin=8, vmax=16.5)  # Set max value to 16.5 (4:30 PM)  
-
-    #     node_colors = [cmap(norm(value)) for value in time_of_day_values]
-
-    #     # Adjust the layout with increased spacing
-    #     pos = nx.spring_layout(cluster_graph, seed=42, k=1.0)  # Increase 'k' to spread nodes further apart
-    #     fig, ax = plt.subplots(figsize=(14, 12))  
-
-    #     # Draw the graph
-    #     nx.draw(
-    #         cluster_graph,
-    #         pos,
-    #         node_size=600,
-    #         node_color=node_colors,
-    #         with_labels=True,
-    #         font_size=10,
-    #         edge_color="gray",
-    #         ax=ax,  
-    #     )
-            
-    #     # Add a color bar for the time of day
-    #     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    #     sm.set_array([])  
-    #     cbar = fig.colorbar(sm, ax=ax, orientation="vertical", shrink=0.8)
-    #     cbar.set_label("Time of Day (Market Hours)", fontsize=12)
-    #     cbar.set_ticks([8, 10, 12, 14, 16, 16.5])  # Add 16.5 for 4:30 PM
-    #     cbar.set_ticklabels(["8:00 AM", "10:00 AM", "12:00 PM", "2:00 PM", "4:00 PM", "4:30 PM"])  
-        
-    #     # Add title and display the plot
-    #     ax.set_title(f"Clustered Graph - {method}", fontsize=18)
-    #     plt.show()
     
     def plot_cluster_2(self, method: str) -> None:
         """

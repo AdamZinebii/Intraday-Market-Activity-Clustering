@@ -56,6 +56,7 @@ class PGASolver:
     ) -> tuple:
         num_intervals = len(C)
         population = PGASolver._initialize_population(population_size, num_intervals, num_clusters)
+
         best_score = float('-inf')
         best_solution = None
         

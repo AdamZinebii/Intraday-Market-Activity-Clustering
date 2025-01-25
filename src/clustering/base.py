@@ -379,7 +379,8 @@ class BaseClustering(ABC):
         icdf = cdf[::-1]
 
         # Define the ICDF function for the power-law distribution
-        fitted_values, fitted_ccdf = fit.ccdf(data=above_xmin)
+        above_xmin = values[values >= x_min]   
+        fitted_values, fitted_ccdf = fit.ccdf()
 
         plt.figure(figsize=(10, 6))
 

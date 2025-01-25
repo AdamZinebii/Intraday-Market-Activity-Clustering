@@ -6,6 +6,10 @@ import numpy as np
 import networkx as nx
 import matplotlib.colors as mcolors
 from scipy.optimize import curve_fit
+from scipy.special import zeta
+import powerlaw
+
+import seaborn as sns
 
 from src.types import Period, FEATURES_KEYS
 
@@ -14,6 +18,8 @@ from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity
 import numpy as np
 import networkx as nx
 from datetime import datetime, timezone
+
+import os
 
 class BaseClustering(ABC):
     periods: List[Period] = None
@@ -138,13 +144,24 @@ class BaseClustering(ABC):
     def transition_matrix(self) -> np.ndarray:
         return self.get_transition_probability_matrix()
     
-    def plot_transition_matrix(self):
+    def plot_transition_matrix(self, path: str = None):
         plt.figure(figsize=(8, 8))
-        plt.imshow(self.transition_matrix, cmap='Blues')
-        plt.colorbar()
-        plt.xlabel('Next Cluster')
-        plt.ylabel('Current Cluster')
+        sns.heatmap(
+            self.transition_matrix, 
+            cmap='Blues',
+            vmin=0, vmax=1,
+            annot=True, fmt=".2f",
+            xticklabels=range(1, self.n_clusters+1),
+            yticklabels=range(1, self.n_clusters+1)
+        )
+        plt.xlabel('$state_{t+1}$')
+        plt.ylabel('$state_{t}$')
         plt.title('Transition Matrix')
+
+        if path:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            plt.savefig(path, dpi=300)
+
         plt.show()
     
     def score(self, X: List[Period]) -> float:
@@ -163,7 +180,7 @@ class BaseClustering(ABC):
         """
         return cosine_similarity(self.ssv, [x.fv for x in X]).mean()
     
-    def plot_ssv(self):
+    def plot_ssv(self, path: str = None):
         # Determine the grid layout for subplots
         cols = 3  # Number of plots per row
         rows = (self.n_clusters + cols - 1) // cols  # Compute the number of rows needed
@@ -171,7 +188,6 @@ class BaseClustering(ABC):
         fig, ax = plt.subplots(nrows=rows, ncols=cols, figsize=(15, 5 * rows))  # Adjust the figure size for better visuals
         ax = ax.flatten()  # Flatten the grid into a 1D array for easier iteration
         
-        print(self.ssv)
         for i, ssv in enumerate(self.ssv):
             if np.isnan(ssv).any():  # Skip if ssv contains NaN
                 continue
@@ -186,7 +202,7 @@ class BaseClustering(ABC):
             barlist[3].set_color('y')
 
             ax[i].set_xticks(range(4))
-            ax[i].set_xticklabels(['Trade Price', 'Trade Volume', 'Spread', 'Quote Volume Imbalance'])
+            ax[i].set_xticklabels(['Trade Price', 'Trade Volume', 'Spread', 'QVI'])
             ax[i].set_ylabel('Value')
             ax[i].set_title(f'Cluster {i}')
 
@@ -196,19 +212,20 @@ class BaseClustering(ABC):
 
         plt.suptitle('Clusters SSV')
         plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to fit the title
-        plt.show()
 
-    def plot_transition_matrix(self):
-        plt.figure(figsize=(8, 8))
-        plt.imshow(self.transition_matrix, cmap='Blues')
-        plt.colorbar()
-        plt.xlabel('Next Cluster')
-        plt.ylabel('Current Cluster')
-        plt.title('Transition Matrix')
+        # Save the plot
+        if path:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            plt.savefig(path, dpi=300)
+
         plt.show()
 
     
-    def plot_community_graph(self, method: str) -> None:
+    def plot_community_graph(
+            self, 
+            method: str,
+            path: str = None
+        ) -> None:
         """
         Plot the graph with clusters as fully connected subgraphs and nodes colored by their time period.
         Clusters are spatially separated to prevent overlap. Additionally, save and print stats of the number
@@ -320,6 +337,13 @@ class BaseClustering(ABC):
         ax.set_title(f"Clustered Graph - {method}", fontsize=20, pad=20)
         ax.set_axis_off()
         plt.tight_layout()
+
+        # Save the plot
+        if path:
+            import os
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            plt.savefig(path, dpi=300)
+
         plt.show()
 
     def summarize_clusters(self):
@@ -330,26 +354,48 @@ class BaseClustering(ABC):
         #print(f"Cluster centers: {clustering.cluster_centers}")
         print(f"Transition matrix: \n{self.transition_matrix}")
 
-    def power_law(self):
-        """
-            Returns the relative 
-        """
-        #  We define the model as: x^alpha ~ p(x)
-        model = lambda x, alpha: x**(-alpha)
-        alpha, pvalue = curve_fit(model, xdata=self.clusters_sizes)
-
-        return alpha, pvalue
-
-    def plot_power_law(self):
+    def plot_power_law(self, path: str = None):
         """
             Plots the power law distribution of the cluster sizes
         """
-        model = lambda x, alpha: x**(-alpha)
-        alpha, pvalue = self.power_law()
-        plt.plot(self.clusters_sizes, model(self.clusters_sizes, alpha), label=f"$p(x) = x^{{{alpha}}}$")
-        plt.scatter(self.clusters_sizes, model(self.clusters_sizes, alpha), label="Cluster sizes")
+        # Step 1: Load or generate data
+        data = np.array(self.clusters_sizes)
+
+        # Step 2: Fit the power-law distribution
+        fit = powerlaw.Fit(data)  # Automatically finds x_min and alpha
+        alpha = fit.alpha
+        x_min = int(fit.xmin)
+        #loglikelihood = fit.loglikelihood
+        pvalue = fit.distribution_compare('power_law', 'lognormal', normalized_ratio=True)[1]
+
+        print(f"Estimated alpha: {alpha}")
+        print(f"Estimated x_min: {x_min}")
+        #print(f"Log-likelihood: {loglikelihood}")
+        print(f"P-value: {pvalue}")
+
+        # Step 3: Plot the ICDF (log-log scale)
+        values, counts = np.unique(data, return_counts=True)
+        cdf = np.cumsum(counts) / np.sum(counts)
+        icdf = cdf[::-1]
+
+        # Define the ICDF function for the power-law distribution
+        fitted_values, fitted_ccdf = fit.ccdf(data=above_xmin)
+
+        plt.figure(figsize=(10, 6))
+
+        plt.loglog(values, icdf, label="Empirical CCDF", marker='o', linestyle='none')
+        plt.loglog(fitted_values, fitted_ccdf, label="Fitted CCDF", linestyle='--')
+
+        plt.xlabel("x")
+        plt.ylabel("$P(X \geq x)$")
+
         plt.legend()
-        plt.title(f"Power Law Distribution of Cluster Sizes: p-value = {pvalue}")
+
+        plt.title(f"Power-law distribution of cluster sizes: $\\alpha={alpha:.2f}$, $x_{{\\min}}={x_min}$, $p_{{\\text{{value}}}}={pvalue:.5f}$")
+
+        if path:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            plt.savefig(path, dpi=300)
         plt.show()
 
 

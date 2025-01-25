@@ -182,6 +182,7 @@ class Market:
     end_date: int = None
 
     def __post_init__(self):
+        self.tick_data = sorted(self.tick_data, key=lambda t: t.timestamp)
         if self.start_date is None:
             self.start_date = min(t.timestamp for t in self.tick_data)
         if self.end_date is None:
@@ -249,14 +250,14 @@ class Market:
         return pd.DataFrame([tick.to_dict() for tick in self.tick_data])
     
     def sample(self, n: int) -> "Market":
-        return Market(tick_data=np.random.choice(self.tick_data, n))
+        return Market(tick_data=self.tick_data[:n])
 
     @staticmethod
     def extend_from_pandas(df, stock, type):
         return [Tick.from_dict(Market.to_dict(row, stock, type)) for _, row in df.iterrows() if valid_row(row, type)]
     
     def get_periods(self, period_length: int) -> List[Period]:
-        if not self.tick_data:
+        if self.tick_data is None:
             print("No tick data available")
             return []
 
@@ -398,9 +399,6 @@ class Market:
                 valid_mask = ~np.isnan(fvs[i]) & ~np.isnan(fvs[j])
                 if np.any(valid_mask):  # Ensure there's at least one valid pair
                     corr_matrix[i, j] = np.corrcoef(fvs[i][valid_mask], fvs[j][valid_mask])[0, 1]
-                    if np.isnan(corr_matrix[i, j]):
-                        print('erere',i,j)
-                        print(fvs[i],fvs[j])
         return corr_matrix
 
     

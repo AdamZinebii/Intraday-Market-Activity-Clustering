@@ -126,4 +126,7 @@ class LikelihoodClustering(BaseClustering):
         best_solution, best_score = self.solver(corr, **kwargs)
         print(f'Best solution : {best_solution}')
         print(f'Best score : {best_score:.4f}')
-        return best_solution
+
+        map = {label: i for i, label in enumerate(np.unique(best_solution))}
+
+        return [map[label] for label in best_solution]

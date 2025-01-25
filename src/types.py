@@ -150,7 +150,7 @@ class Period:
     @property
     def fv(self):
         # Compute the stock feature values
-        per_stock_fv = self.fv_inter.reshape(-1, len(FEATURES_KEYS))
+        per_stock_fv = self.feature_vector.reshape(-1, len(FEATURES_KEYS))
         return np.mean(per_stock_fv, axis=0)
 
        
@@ -254,46 +254,6 @@ class Market:
     @staticmethod
     def extend_from_pandas(df, stock, type):
         return [Tick.from_dict(Market.to_dict(row, stock, type)) for _, row in df.iterrows() if valid_row(row, type)]
-
-    def get_periods(self, period_length: int) -> List[Period]:
-        periods = []
-
-        # if not self.tick_data:
-        #     print("No tick data available")
-        #     return periods
-
-        data = sorted(self.tick_data, key=lambda t: t.timestamp)
-        start = self.start_date
-        end = self.start_date + period_length
-        current_period_data = []
-        idx = 0
-
-        while True:
-            if idx >= len(data):
-                break
-
-            tick = data[idx]
-            # If the tick is within the current period, add it to the current period data
-            if tick.timestamp < end:
-                current_period_data.append(tick)
-                idx += 1
-            # If the tick is before the current period, skip it
-            elif tick.timestamp > start and tick.timestamp < self.end_date:
-                if current_period_data:
-                    periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks=self.stocks))
-                start = end
-                end += period_length
-                current_period_data = []
-
-                if end >= self.end_date:
-                    end = self.end_date
-            # If the tick is after the current period, create a new period
-            elif tick.timestamp > self.end_date:
-                if current_period_data:
-                    periods.append(Period(start=start, end=end, tick_data=current_period_data, stocks=self.stocks))
-                break
-        nperiods = affect_fvs(periods)
-        return nperiods
     
     def get_periods_fast(self, period_length: int) -> List[Period]:
         if not self.tick_data:

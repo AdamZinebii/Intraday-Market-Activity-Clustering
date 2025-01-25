@@ -153,6 +153,15 @@ class BaseClustering(ABC):
     def transition_matrix(self) -> np.ndarray:
         return self.get_transition_probability_matrix()
     
+    def plot_transition_matrix(self):
+        plt.figure(figsize=(8, 8))
+        plt.imshow(self.transition_matrix, cmap='Blues')
+        plt.colorbar()
+        plt.xlabel('Next Cluster')
+        plt.ylabel('Current Cluster')
+        plt.title('Transition Matrix')
+        plt.show()
+    
     def score(self, X: List[Period]) -> float:
         """
         Score the clustering algorithm on the data
@@ -352,7 +361,6 @@ class BaseClustering(ABC):
         #print(f"Cluster centers: {clustering.cluster_centers}")
         print(f"Transition matrix: \n{self.transition_matrix}")
 
-   
     def power_law(self):
         """
             Returns the relative 
@@ -363,6 +371,17 @@ class BaseClustering(ABC):
 
         return alpha, pvalue
 
+    def plot_power_law(self):
+        """
+            Plots the power law distribution of the cluster sizes
+        """
+        model = lambda x, alpha: x**(-alpha)
+        alpha, pvalue = self.power_law()
+        plt.plot(self.clusters_sizes, model(self.clusters_sizes, alpha), label=f"$p(x) = x^{{{alpha}}}$")
+        plt.scatter(self.clusters_sizes, model(self.clusters_sizes, alpha), label="Cluster sizes")
+        plt.legend()
+        plt.title(f"Power Law Distribution of Cluster Sizes: p-value = {pvalue}")
+        plt.show()
 
 
 

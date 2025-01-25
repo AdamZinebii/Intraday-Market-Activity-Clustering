@@ -178,8 +178,14 @@ class Period:
 @dataclass
 class Market:
     tick_data: List[Tick]
-    start_date: int
-    end_date: int
+    start_date: int = None
+    end_date: int = None
+
+    def __post_init__(self):
+        if self.start_date is None:
+            self.start_date = min(t.timestamp for t in self.tick_data)
+        if self.end_date is None:
+            self.end_date = max(t.timestamp for t in self.tick_data)
 
     @property
     def stocks(self):
@@ -210,9 +216,15 @@ class Market:
 
         return cls(tick_data=tick_data, start_date=start_date.timestamp(), end_date=end_date.timestamp())
 
-    def from_csv(cls, start_date, end_date, path: str) -> "Market":
+    @classmethod
+    def from_csv(cls, path: str) -> "Market":
         df = pd.read_csv(path)
-        return cls.from_pandas(df, start_date=start_date, end_date=end_date)
+        return cls.from_pandas(df)
+    
+    @classmethod
+    def from_parquet(cls, path: str) -> "Market":
+        df = pd.read_parquet(path)
+        return cls.from_pandas(df)
 
     @classmethod
     def from_jsonl(cls, path: str, start_date: str, end_date: str):
@@ -224,10 +236,20 @@ class Market:
         # return cls.from_pandas(df)
 
     @classmethod
-    def from_pandas(cls, df, start_date, end_date) -> "Market":
+    def from_pandas(cls, df) -> "Market":
         tick_data = [Tick.from_dict(row.to_dict()) for _, row in df.iterrows()]
-        return cls(tick_data=tick_data, start_date=datetime.strptime(start_date, DATE_FORMAT).timestamp(),
-                   end_date=datetime.strptime(end_date, DATE_FORMAT).timestamp())
+        return cls(tick_data=tick_data)
+    
+    def to_jsonl(self, path: str):
+        with open(path, 'w') as f:
+            for tick in self.tick_data:
+                f.write(json.dumps(tick.to_dict()) + '\n')
+
+    def to_df(self) -> pd.DataFrame:
+        return pd.DataFrame([tick.to_dict() for tick in self.tick_data])
+    
+    def sample(self, n: int) -> "Market":
+        return Market(tick_data=np.random.choice(self.tick_data, n))
 
     @staticmethod
     def extend_from_pandas(df, stock, type):
@@ -236,9 +258,9 @@ class Market:
     def get_periods(self, period_length: int) -> List[Period]:
         periods = []
 
-        if not self.tick_data:
-            print("No tick data available")
-            return periods
+        # if not self.tick_data:
+        #     print("No tick data available")
+        #     return periods
 
         data = sorted(self.tick_data, key=lambda t: t.timestamp)
         start = self.start_date

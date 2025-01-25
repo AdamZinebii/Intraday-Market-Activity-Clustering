@@ -75,7 +75,8 @@ class BaseClustering(ABC):
         """Clusters as a list of tuples (index, periods)"""
         cluster_list = []
         for i in range(self.n_clusters):
-            cluster_indices = np.where(self.labels == i)[0]  # Indices of periods in cluster i
+            labels_array = np.array(self.labels)
+            cluster_indices = np.where(labels_array == i)[0]  # Indices of periods in cluster i
             cluster_periods = [self.periods[j] for j in cluster_indices]  # Periods corresponding to those indices
             cluster_list.append(cluster_periods)
         return cluster_list
@@ -94,26 +95,10 @@ class BaseClustering(ABC):
         """Number of features"""
         return self.periods[0].shape[1]
 
-    # @property
-    # def centers(self) -> np.ndarray:
-    #     centers = []
-    #     for c in self.clusters:
-    #         # Calculer la moyenne pour chaque colonne
-    #         means = []
-    #         # centroid = np.mean([p.feature_vector for p in c], axis=0)
-    #         for p in c:
-    #             fv_resh = p.feature_vector.reshape(-1, 4)
-    #             stock_means = fv_resh.mean(axis=0)
-    #             means.append(stock_means)
-    #         centroid = np.mean(means, axis=0)
-    #         # print(centroid)
-    #         centers.append(centroid)
-    #     return centers
     
     @property
     def centers(self) -> np.ndarray:
         centers = []
-        print("Clusters", self.clusters)
         for c in self.clusters:
             tab = [p.fv for p in c]
             centroid = np.mean(tab, axis=0)
@@ -173,8 +158,6 @@ class BaseClustering(ABC):
         fig, ax = plt.subplots(nrows=self.n_clusters, figsize=(10, 5 * self.n_clusters))
 
         for i, ssv in enumerate(self.ssv):
-            print("Getting ssv for cluster:", i)
-            print("SSV", ssv)
             # Check if ssv is nan
             if np.isnan(ssv).any():
                 continue

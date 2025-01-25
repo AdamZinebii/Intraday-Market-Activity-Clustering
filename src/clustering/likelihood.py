@@ -51,8 +51,8 @@ class PGASolver:
         C: np.ndarray, 
         num_clusters: int = 3, 
         population_size: int = 20, 
-        generations: int = 50, 
-        mutation_rate: float = 0.1
+        generations: int = 200, 
+        mutation_rate: float = 0.09
     ) -> tuple:
         num_intervals = len(C)
         population = PGASolver._initialize_population(population_size, num_intervals, num_clusters)
@@ -80,7 +80,7 @@ class PGASolver:
             
             # Mutation
             population = [PGASolver._mutate(ind, num_clusters, mutation_rate) for ind in next_population]
-        
+
         return best_solution, best_score
     
     def __call__(

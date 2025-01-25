@@ -487,7 +487,7 @@ class Market:
         method = 'inter' if inter else 'intra'
         corr_matrix = self.compute_correlation_matrix(periods, method=method)
         
-        # Step 2: Apply filter
+        # Step 2: Apply filter if specified
         if filter_type == 'delta':
             corr_matrix = self.filter_delta(corr_matrix)
         elif filter_type == 's':
@@ -504,9 +504,9 @@ class Market:
         G = nx.Graph()
         i, j = np.triu_indices(n, k=1)
         edges = corr_matrix[i, j]
-        mask = edges > threshold  # Assuming positive correlations only
+        # Apply threshold to filter positive edges
+        mask = edges > threshold
         
-        # Add edges and weights
         G.add_edges_from(zip(i[mask], j[mask]))
         for u, v in zip(i[mask], j[mask]):
             G[u][v]['weight'] = corr_matrix[u, v]

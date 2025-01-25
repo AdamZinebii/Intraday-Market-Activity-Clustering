@@ -392,7 +392,8 @@ class BaseClustering(ABC):
 
         plt.legend()
 
-        plt.title(f"Power-law distribution of cluster sizes: $\\alpha={alpha:.2f}$, $x_{{\\min}}={x_min}$, $p_{{\\text{{value}}}}={pvalue:.5f}$")
+        # plt.title(f"Power-law distribution of cluster sizes: $\\alpha={alpha:.2f}$, $x_{{\\min}}={x_min}$, $p_{{\\text{{value}}}}={pvalue:.5f}$")
+        plt.title(f"Power-law distribution of cluster sizes: $\\alpha={alpha:.2f}, x_{{\\min}}={x_min}$")
 
         if path:
             os.makedirs(os.path.dirname(path), exist_ok=True)

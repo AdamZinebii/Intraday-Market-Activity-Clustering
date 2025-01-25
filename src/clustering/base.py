@@ -156,7 +156,7 @@ class BaseClustering(ABC):
     
     def plot_ssv(self):
         fig, ax = plt.subplots(nrows=self.n_clusters, figsize=(10, 5 * self.n_clusters))
-
+        print(self.ssv)
         for i, ssv in enumerate(self.ssv):
             # Check if ssv is nan
             if np.isnan(ssv).any():
@@ -182,38 +182,17 @@ class BaseClustering(ABC):
         plt.tight_layout()
         plt.show()
 
-    def plot_community_graph(self, G: nx.Graph, method: str) -> None:
-        """
-        Plot the community graph colored by community (cluster) labels.
-
-        Parameters
-        ----------
-        G : nx.Graph
-            The graph to visualize.
-        
-        Returns
-        -------
-        None
-        """
-        # Ensure labels are the same length as the number of nodes in G
-        if len(self.labels) != len(G.nodes):
-            raise ValueError("The length of 'self.labels' must be equal to the number of nodes in G")
-
-        # Create a color map based on the community labels
-        colors = [self.labels[i] for i in range(len(self.labels))]  # Community label for each node
-
-        # Generate positions for the nodes using a layout
-        pos = nx.spring_layout(G)  # You can use other layouts like nx.kamada_kawai_layout(G), nx.circular_layout(G), etc.
-
-        # Plot the graph
-        plt.figure(figsize=(10, 8))
-        nx.draw(G, pos, node_size=500, node_color=colors, with_labels=True, cmap=plt.cm.get_cmap("tab10"), 
-                font_size=10, font_weight='bold', edge_color='gray', width=0.5)
-
-        plt.title(f"Community Graph: {method}", fontsize=15)
+    def plot_transition_matrix(self):
+        plt.figure(figsize=(8, 8))
+        plt.imshow(self.transition_matrix, cmap='Blues')
+        plt.colorbar()
+        plt.xlabel('Next Cluster')
+        plt.ylabel('Current Cluster')
+        plt.title('Transition Matrix')
         plt.show()
+
     
-    def plot_cluster_2(self, method: str) -> None:
+    def plot_community_graph(self, method: str) -> None:
         """
         Plot the graph with clusters as fully connected subgraphs and nodes colored by their time period.
         Clusters are spatially separated to prevent overlap. Additionally, save and print stats of the number

@@ -150,7 +150,7 @@ class Period:
     @property
     def fv(self):
         # Compute the stock feature values
-        per_stock_fv = self.fv_inter.reshape(-1, len(FEATURES_KEYS))
+        per_stock_fv = self.feature_vector.reshape(-1, len(FEATURES_KEYS))
         return np.mean(per_stock_fv, axis=0)
 
        

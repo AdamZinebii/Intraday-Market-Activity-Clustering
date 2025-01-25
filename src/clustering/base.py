@@ -155,13 +155,18 @@ class BaseClustering(ABC):
         return cosine_similarity(self.ssv, [x.fv for x in X]).mean()
     
     def plot_ssv(self):
-        fig, ax = plt.subplots(nrows=self.n_clusters, figsize=(10, 5 * self.n_clusters))
+        # Determine the grid layout for subplots
+        cols = 3  # Number of plots per row
+        rows = (self.n_clusters + cols - 1) // cols  # Compute the number of rows needed
+        
+        fig, ax = plt.subplots(nrows=rows, ncols=cols, figsize=(15, 5 * rows))  # Adjust the figure size for better visuals
+        ax = ax.flatten()  # Flatten the grid into a 1D array for easier iteration
+        
         print(self.ssv)
         for i, ssv in enumerate(self.ssv):
-            # Check if ssv is nan
-            if np.isnan(ssv).any():
+            if np.isnan(ssv).any():  # Skip if ssv contains NaN
                 continue
-            
+
             # Create a bar chart
             barlist = ax[i].bar(FEATURES_KEYS, ssv)
 
@@ -176,10 +181,12 @@ class BaseClustering(ABC):
             ax[i].set_ylabel('Value')
             ax[i].set_title(f'Cluster {i}')
 
-        #plt.legend([f'Cluster {i}' for i in range(self.n_clusters)])
-        plt.suptitle('Clusters SSV')
+        # Remove empty subplots if any
+        for j in range(len(self.ssv), len(ax)):
+            fig.delaxes(ax[j])  # Remove unused axes
 
-        plt.tight_layout()
+        plt.suptitle('Clusters SSV')
+        plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to fit the title
         plt.show()
 
     def plot_transition_matrix(self):

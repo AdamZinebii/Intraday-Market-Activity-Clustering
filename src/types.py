@@ -233,7 +233,7 @@ class Market:
     def extend_from_pandas(df, stock, type):
         return [Tick.from_dict(Market.to_dict(row, stock, type)) for _, row in df.iterrows() if valid_row(row, type)]
     
-    def get_periods_fast(self, period_length: int) -> List[Period]:
+    def get_periods(self, period_length: int) -> List[Period]:
         if not self.tick_data:
             print("No tick data available")
             return []

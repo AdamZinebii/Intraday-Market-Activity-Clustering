@@ -117,16 +117,13 @@ class LikelihoodClustering(BaseClustering):
         likelihood_fn = likelihood_map[likelihood_fn]
         self.solver = solver_map[solver](likelihood_fn)
 
-    def fit(self, X: List[Period], **kwargs) -> "BaseClustering":
-        self.periods = X
+    def _fit(self, X: List[Period], **kwargs) ->  List[int]:
 
-        corr = Market.compute_correlation_matrix(self.periods)
+        corr = Market.compute_correlation_matrix(X)
 
-        assert len(self.periods) == corr.shape[0], 'Number of periods must match the number of rows in the correlation matrix'
+        assert len(X) == corr.shape[0], 'Number of periods must match the number of rows in the correlation matrix'
 
         best_solution, best_score = self.solver(corr, **kwargs)
         print(f'Best solution : {best_solution}')
         print(f'Best score : {best_score:.4f}')
-        self.labels = best_solution
-
-        return self
+        return best_solution

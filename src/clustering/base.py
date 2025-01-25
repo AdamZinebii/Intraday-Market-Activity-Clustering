@@ -19,26 +19,40 @@ class BaseClustering(ABC):
     periods: List[Period] = None
     labels: np.ndarray = None
 
-    # NOTE: This should populate self.labels and self.periods
     @abstractmethod
-    def fit(self, X: List[Period], **kwargs) -> "BaseClustering":
-        """ 
+    def _fit(self, X: List[Period], **kwargs) -> List[int]:
+        """
         Fit the clustering algorithm to the data
-
         Parameters
         ----------
         X : List[Period]
             List of periods to fit the clustering algorithm to
-        
+        Returns
+        -------
+        List[int]
+            List of cluster labels for each period
+        """
+        pass
+
+    def fit(self, X: List[Period], **kwargs) -> "BaseClustering":
+        """
+        Fit the clustering algorithm to the data
+        Parameters
+        ----------
+        X : List[Period]
+            List of periods to fit the clustering algorithm to
         Returns
         -------
         BaseClustering
             The fitted clustering algorithm instance
         """
-        pass
+        X = X[1:]
+        # Store the periods and labels
+        self.periods = X
+        self.labels = self._fit(X, **kwargs)
+        return self
 
-    # NOTE: This can be overwritten if the clustering algorithm has a predict method, 
-    # otherwise it will use the default implementation: euclidean_distances of SSVs
+
     def predict(self, X: List[Period]) -> np.ndarray:
         """
         Predict the closest cluster for each period in X
@@ -80,23 +94,29 @@ class BaseClustering(ABC):
         """Number of features"""
         return self.periods[0].shape[1]
 
+    # @property
+    # def centers(self) -> np.ndarray:
+    #     centers = []
+    #     for c in self.clusters:
+    #         # Calculer la moyenne pour chaque colonne
+    #         means = []
+    #         # centroid = np.mean([p.feature_vector for p in c], axis=0)
+    #         for p in c:
+    #             fv_resh = p.feature_vector.reshape(-1, 4)
+    #             stock_means = fv_resh.mean(axis=0)
+    #             means.append(stock_means)
+    #         centroid = np.mean(means, axis=0)
+    #         # print(centroid)
+    #         centers.append(centroid)
+    #     return centers
+    
     @property
     def centers(self) -> np.ndarray:
         centers = []
+        print("Clusters", self.clusters)
         for c in self.clusters:
-
-
-            # Calculer la moyenne pour chaque colonne
-            means = []
-            centroid = np.mean([p.feature_vector for p in c], axis=0)
-            for p in c:
-                fv_resh = p.feature_vector.reshape(-1, 4)
-                stock_means = fv_resh.mean(axis=0)
-                means.append(stock_means)
-            centroid = np.mean(means, axis=0)
-
-
-            # print(centroid)
+            tab = [p.fv for p in c]
+            centroid = np.mean(tab, axis=0)
             centers.append(centroid)
         return centers
 
@@ -153,10 +173,12 @@ class BaseClustering(ABC):
         fig, ax = plt.subplots(nrows=self.n_clusters, figsize=(10, 5 * self.n_clusters))
 
         for i, ssv in enumerate(self.ssv):
+            print("Getting ssv for cluster:", i)
+            print("SSV", ssv)
             # Check if ssv is nan
             if np.isnan(ssv).any():
                 continue
-            print("SSV", ssv)
+            
             # Create a bar chart
             barlist = ax[i].bar(FEATURES_KEYS, ssv)
 

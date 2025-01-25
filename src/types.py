@@ -131,15 +131,6 @@ class Period:
         return fv_vals_stock
 
     @property
-    def fv(self):
-        # Compute the stock feature values
-        per_stock_fv = np.array([self.get_stock_fv(stock) for stock in self.stocks])
-
-        # Example: Adding epsilon directly
-        flattened_fv = np.concatenate(per_stock_fv)
-        return flattened_fv
-
-    @property
     def fv_inter(self):
         # Compute the stock feature values
         per_stock_fv = np.array([self.get_stock_fv_ip(stock) for stock in self.stocks])
@@ -150,15 +141,6 @@ class Period:
       
     def stocks(self):
         return set(t.stock for t in self.tick_data)
-
-    # @property
-    # def per_stock_ticks(self) -> Dict[str, List[Tick]]:
-    #     per_stock = {}
-    #     for tick in self.tick_data:
-    #         if tick.stock not in per_stock:
-    #             per_stock[tick.stock] = []
-    #         per_stock[tick.stock].append(tick)
-    #     return per_stock
         
     def get_stock_fv(self, stock: str) -> np.ndarray:
         stock_data = np.array([t.features for t in self.per_stock_ticks.get(stock, [])])
@@ -168,13 +150,14 @@ class Period:
     @property
     def fv(self):
         # Compute the stock feature values
-        per_stock_fv = np.array([self.get_stock_fv(stock) for stock in self.stocks])
+        per_stock_fv = self.fv_inter.reshape(-1, len(FEATURES_KEYS))
         return np.mean(per_stock_fv, axis=0)
+
+       
 
     def plot_fv(self, ax):
         # Create a bar chart
         barlist = ax.bar(FEATURES_KEYS, self.fv)
-
 
         # Set the color of the bars
         barlist[0].set_color('r')

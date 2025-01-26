@@ -2,7 +2,17 @@
 
 ## Abstract 📝
 
-
+We propose the exploration of clustering of intraday market activity, with a focus
+on leveraging macroeconomic signals for improved regime detection. Financial markets are com-
+plex, influenced by various participants and external factors such as geopolitical events and eco-
+nomic indicators. By using high-frequency intraday data, we aim to uncover patterns in market
+behavior that can enhance trading strategies. Our approach incorporates both likelihood-based
+PGA and graph-based clustering techniques to analyze the dynamics of market states across
+different time scales. The results demonstrate the potential of these models in identifying dis-
+tinct market regimes, particularly in distinguishing between periods of financial instability and
+stability. This work lays the foundation for more effective predictive models in financial market
+analysis and decision-making, with the potential to incorporate external macroeconomic factors
+to improve predictive accuracy and the interpretation of market behavior
 
 ---
 

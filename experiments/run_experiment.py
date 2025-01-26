@@ -23,6 +23,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def run_experiment(market: Market, periods: List[Period], results_path: str, year: int, period_length: int):
     """Run the clustering experiment for the given market and periods."""
+    print("Initializing the experiment...")
     # Initialize the graph for the graph-based clustering algorithms
     state_graph_s = market.build_graph(periods, threshold=0.5, inter=True, filter_type='s')
     state_graph_g = market.build_graph(periods, threshold=0.5, inter=True, filter_type='g')
@@ -97,16 +98,18 @@ def run_experiment(market: Market, periods: List[Period], results_path: str, yea
 if __name__ == '__main__':
     # Year and periods settings 
     years = [2007, 2010]
-    periods_length = [30, 60] * 60 
+    periods_length = [30, 60] 
 
     for year in years:
         data_path = os.path.relpath(f'../data/CAC40/FR_{year}')
         results_path = os.path.relpath(f'../results/')
         for period_length in periods_length:
-            print(f'Running experiment for {year} with period length {period_length} days')
+            print(f'Running experiment for {year} with period length {period_length*60} days')
+    
             # Load data for the corresponding year
             market = Market.loader(f'{year}/03/01',f'{year}/04/10', data_path)   
-            periods = market.get_periods(period_length=period_length)
+            periods = market.get_periods(period_length=period_length*60)
+            print(f"Number of periods: {len(periods)}")
 
             # Run the experiment
-            run_experiment(market, periods, results_path, year, period_length)
+            run_experiment(market, periods, results_path, year, period_length*60)

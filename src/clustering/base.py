@@ -150,7 +150,6 @@ class BaseClustering(ABC):
             self.transition_matrix, 
             cmap='Blues',
             vmin=0, vmax=1,
-            annot=True, fmt=".2f",
             xticklabels=range(1, self.n_clusters+1),
             yticklabels=range(1, self.n_clusters+1)
         )

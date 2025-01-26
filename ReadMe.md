@@ -7,10 +7,8 @@ factors such as geopolitical events and economic indicators. By using high-frequ
 data, we aim to uncover patterns in market behavior that can enhance trading strategies. Our
 approach incorporates both likelihood-based PGA and graph-based clustering techniques to
 analyze the dynamics of market states across different time scales. The results demonstrate
-the potential of these models in identifying distinct market regimes, particularly in distinguish-
-ing between different macroeconomic periods. This work lays the foundation for more effective
-predictive models in financial market analysis and decision-making, with the potential to incor-
-porate external macroeconomic factors to improve predictive accuracy and the interpretation of
+the potential of these models in identifying distinct market regimes, particularly in distinguishing between different macroeconomic periods. This work lays the foundation for more effective
+predictive models in financial market analysis and decision-making, with the potential to incorporate external macroeconomic factors to improve predictive accuracy and the interpretation of
 market behavior.
 
 ---

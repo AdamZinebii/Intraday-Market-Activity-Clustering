@@ -2,14 +2,14 @@
 
 ## Abstract 📝
 
-Financial markets are complex, influenced by various participants and external
-factors such as geopolitical events and economic indicators. By using high-frequency intraday
-data, we aim to uncover patterns in market behavior that can enhance trading strategies. Our
-approach incorporates both likelihood-based PGA and graph-based clustering techniques to
-analyze the dynamics of market states across different time scales. The results demonstrate
-the potential of these models in identifying distinct market regimes, particularly in distinguishing between different macroeconomic periods. This work lays the foundation for more effective
-predictive models in financial market analysis and decision-making, with the potential to incorporate external macroeconomic factors to improve predictive accuracy and the interpretation of
-market behavior.
+Financial markets are complex systems shaped by multi-agent interactions of and
+external factors, including geopolitical events and economic indicators. This study leverages
+intraday data to identify patterns in market behavior, focusing on the evolving dynamics of
+microstructure market states across distinct macroeconomic periods. Our findings emphasize
+how different economic environments, such as periods of stability or crisis, influence the results
+of market state detection models. This work provides a foundation for developing predictive
+models that integrate external macroeconomic factors, enhancing the accuracy of forecasts and
+the interpretability of market behavior for improved decision-making.
 
 ---
 
